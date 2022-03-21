@@ -81,7 +81,7 @@ fun ComposableChatScreen(
                         is ImageMessageItem -> TODO()
                         is TransferMessageItem -> TODO()
                         is UnionMessageItem -> TODO()
-                        null -> TODO()
+                        null -> TODO() // qwerty
                     }
                 }
             }
