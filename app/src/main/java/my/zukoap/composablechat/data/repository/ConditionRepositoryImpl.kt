@@ -1,0 +1,99 @@
+package my.zukoap.composablechat.data.repository
+
+import android.content.SharedPreferences
+import my.zukoap.composablechat.common.ChatStatus
+import my.zukoap.composablechat.data.local.db.dao.MessageDao
+import my.zukoap.composablechat.data.remote.socket.SocketApi
+import my.zukoap.composablechat.domain.repository.ConditionRepository
+import my.zukoap.composablechat.initialization.ChatMessageListener
+import my.zukoap.composablechat.presentation.ChatInternetConnectionListener
+import javax.inject.Inject
+
+class ConditionRepositoryImpl(
+    private val messageDao: MessageDao,
+    private val pref: SharedPreferences,
+    private val socketApi: SocketApi
+) : ConditionRepository {
+
+    override fun setInternetConnectionListener(listener: ChatInternetConnectionListener) {
+        socketApi.setInternetConnectionListener(listener)
+    }
+
+    override fun setMessageListener(listener: ChatMessageListener) {
+        socketApi.setMessageListener(listener)
+    }
+
+    override fun setStatusChat(newStatus: ChatStatus) {
+        if (newStatus in listOf(ChatStatus.ON_CHAT_SCREEN_FOREGROUND_APP, ChatStatus.ON_CHAT_SCREEN_BACKGROUND_APP)) {
+            socketApi.resetNewMessagesCounter()
+        }
+        socketApi.chatStatus = newStatus
+    }
+
+    override fun getStatusChat(): ChatStatus = socketApi.chatStatus
+
+    override fun createSessionChat() {
+        socketApi.initSocket()
+    }
+
+    override fun destroySessionChat() {
+        socketApi.destroySocket()
+    }
+
+    override fun dropChat() {
+        socketApi.dropChat()
+    }
+
+    override fun getFlagAllHistoryLoaded(): Boolean {
+        return pref.getBoolean(FIELD_IS_ALL_HISTORY_LOADED, false)
+    }
+
+    override fun saveFlagAllHistoryLoaded(isAllHistoryLoaded: Boolean) {
+        val prefEditor = pref.edit()
+        prefEditor.putBoolean(FIELD_IS_ALL_HISTORY_LOADED, isAllHistoryLoaded)
+        prefEditor.apply()
+    }
+
+    override fun deleteFlagAllHistoryLoaded() {
+        val prefEditor = pref.edit()
+        prefEditor.remove(FIELD_IS_ALL_HISTORY_LOADED)
+        prefEditor.apply()
+    }
+
+    override fun getCurrentReadMessageTime(): Long {
+        return pref.getLong(FIELD_CURRENT_READ_MESSAGE_TIME, 0)
+    }
+
+    override fun getCountUnreadMessages(): Int {
+        return pref.getInt(FIELD_COUNT_UNREAD_MESSAGES, 0)
+    }
+
+    override fun saveCurrentReadMessageTime(currentReadMessageTime: Long) {
+        val prefEditor = pref.edit()
+        prefEditor.putLong(FIELD_CURRENT_READ_MESSAGE_TIME, currentReadMessageTime)
+        prefEditor.apply()
+    }
+
+    override fun saveCountUnreadMessages(countUnreadMessages: Int) {
+        val prefEditor = pref.edit()
+        prefEditor.putInt(FIELD_COUNT_UNREAD_MESSAGES, countUnreadMessages)
+        prefEditor.apply()
+    }
+
+    override fun deleteCurrentReadMessageTime() {
+        val prefEditor = pref.edit()
+        prefEditor.remove(FIELD_CURRENT_READ_MESSAGE_TIME)
+        prefEditor.apply()
+    }
+
+    override suspend fun getStatusExistenceMessages(): Boolean {
+        return messageDao.isNotEmpty()
+    }
+
+    companion object {
+        private const val FIELD_IS_ALL_HISTORY_LOADED = "isAllHistoryLoaded"
+        private const val FIELD_CURRENT_READ_MESSAGE_TIME = "currentReadMessageTime"
+        private const val FIELD_COUNT_UNREAD_MESSAGES = "countUnreadMessages"
+    }
+
+}
