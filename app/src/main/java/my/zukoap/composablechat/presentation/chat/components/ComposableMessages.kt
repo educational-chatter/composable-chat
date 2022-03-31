@@ -1,6 +1,7 @@
 package my.zukoap.composablechat.presentation.chat.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,11 +24,11 @@ import coil.request.ImageRequest
 import my.zukoap.composablechat.R
 import my.zukoap.composablechat.common.ChatParams
 import my.zukoap.composablechat.domain.entity.message.MessageType
-import my.zukoap.composablechat.presentation.chat.model.ActionItem
-import my.zukoap.composablechat.presentation.chat.model.InfoMessageItem
-import my.zukoap.composablechat.presentation.chat.model.Role
-import my.zukoap.composablechat.presentation.chat.model.TextMessageItem
+import my.zukoap.composablechat.presentation.chat.model.*
 import java.text.SimpleDateFormat
+
+private val chatBubbleShape = RoundedCornerShape(8.dp, 8.dp, 8.dp, 8.dp)
+private val formatTime = SimpleDateFormat("HH:mm", ChatParams.locale)
 
 @Composable
 fun TextMessage(
@@ -56,7 +57,16 @@ fun TextMessage(
         Column(
             modifier = Modifier
                 .widthIn(0.dp, 360.dp)
-                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalAlignment = when (msg.role) {
+                Role.USER -> {
+                    Alignment.End
+                }
+                Role.OPERATOR -> {
+                    Alignment.Start
+                }
+                else -> Alignment.CenterHorizontally
+            }
         ) {
             TextBubble(message = msg.message, isUserMe = msg.role == Role.USER)
             if (msg.actions?.isNotEmpty() == true) {
@@ -94,8 +104,109 @@ fun InfoMessage(
     )
 }
 
+@Composable
+fun ImageMessage(
+    msg: ImageMessageItem,
+    updateData: (id: String, height: Int, width: Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        contentAlignment = when (msg.role) {
+            Role.USER -> {
+                Alignment.CenterEnd
+            }
+            Role.OPERATOR -> {
+                Alignment.CenterStart
+            }
+            else -> {
+                Alignment.Center
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(modifier)
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(0.dp, 250.dp)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalAlignment = when (msg.role) {
+                Role.USER -> {
+                    Alignment.End
+                }
+                Role.OPERATOR -> {
+                    Alignment.Start
+                }
+                else -> Alignment.CenterHorizontally
+            }
+        ) {
+            val backgroundBubbleColor = if (msg.role == Role.USER) {
+                MaterialTheme.colors.primary
+            } else {
+                MaterialTheme.colors.surface
+            }
+            Surface(shape = chatBubbleShape, color = backgroundBubbleColor) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(msg.image.url)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = msg.image.name,
+                    onSuccess = { result ->
+                        if (msg.image.failLoading) {
+                            updateData(
+                                msg.id,
+                                result.result.drawable.intrinsicHeight,
+                                result.result.drawable.intrinsicWidth
+                            )
+                        }
+                    },
+                    placeholder = painterResource(id = R.drawable.ic_baseline_image_24),
+                    contentScale = ContentScale.FillBounds,
+                    error = painterResource(R.drawable.ic_baseline_broken_image_24),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .background(backgroundBubbleColor)
+                        .clip(chatBubbleShape)
+                        .fillMaxWidth()
+                )
+            }
+            AuthorInfo(
+                authorName = msg.authorName,
+                authorPreview = msg.authorPreview,
+                timestamp = msg.timestamp,
+                isUserMe = msg.role == Role.USER,
+                state = msg.stateCheck
+            )
+        }
+    }
+}
 
-private val ChatBubbleShape = RoundedCornerShape(8.dp, 8.dp, 8.dp, 8.dp)
+
+@Composable
+fun DateText(timestamp: Long) {
+    val formatYear = SimpleDateFormat("yyyy", ChatParams.locale)
+    val formatTime = SimpleDateFormat("dd MMMM", ChatParams.locale)
+
+    val nowYear = formatYear.format(System.currentTimeMillis())
+    val currentYear = formatYear.format(timestamp)
+    val date = formatTime.format(timestamp)
+
+    val text = if (nowYear == currentYear) {
+        date
+    } else {
+        "$date $currentYear"
+    }
+    Text(
+        text = text,
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxWidth(),
+        textAlign = TextAlign.Center,
+        style = TextStyle(fontSize = 14.sp),
+        color = MaterialTheme.colors.secondaryVariant,
+    )
+}
 
 @Composable
 private fun ActionsList(
@@ -105,7 +216,7 @@ private fun ActionsList(
 ) {
     Surface(
         modifier = Modifier.padding(top = 8.dp),
-        shape = ChatBubbleShape,
+        shape = chatBubbleShape,
         border = BorderStroke(2.dp, MaterialTheme.colors.secondaryVariant)
     ) {
         Column {
@@ -113,7 +224,7 @@ private fun ActionsList(
                 ActionSurface(
                     actionItem = actionItem,
                     hasSelectedAction = hasSelectedAction,
-                    onitemClick = { onitemClick(actionItem.id) }
+                    onItemClick = { onitemClick(actionItem.id) }
                 )
                 Divider(color = MaterialTheme.colors.secondaryVariant, thickness = 2.dp)
             }
@@ -121,19 +232,18 @@ private fun ActionsList(
     }
 }
 
-
 @Composable
 private fun ActionSurface(
     actionItem: ActionItem,
     hasSelectedAction: Boolean,
-    onitemClick: () -> Unit = {}
+    onItemClick: () -> Unit = {}
 ) {
     val color =
         if (actionItem.isSelected) MaterialTheme.colors.primary else MaterialTheme.colors.secondary
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !hasSelectedAction) { onitemClick() },
+            .clickable(enabled = !hasSelectedAction) { onItemClick() },
         color = if (actionItem.isSelected) MaterialTheme.colors.primary else MaterialTheme.colors.secondary,
         contentColor = contentColorFor(backgroundColor = color),
     ) {
@@ -146,8 +256,6 @@ private fun ActionSurface(
     }
 }
 
-private val formatTime = SimpleDateFormat("HH:mm")
-
 @Composable
 private fun AuthorInfo(
     authorName: String,
@@ -159,7 +267,7 @@ private fun AuthorInfo(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, top = 8.dp),
+            .padding(top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = if (isUserMe) Arrangement.End else Arrangement.Start
     ) {
@@ -168,6 +276,7 @@ private fun AuthorInfo(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(authorPreview ?: R.drawable.ic_operator)
                     .crossfade(true)
+                    .error(R.drawable.ic_baseline_broken_image_24)
                     .build(),
                 placeholder = painterResource(R.drawable.ic_operator),
                 contentDescription = null,
@@ -225,31 +334,6 @@ private fun AuthorInfo(
 }
 
 @Composable
-fun DateText(timestamp: Long) {
-    val formatYear = SimpleDateFormat("yyyy")
-    val formatTime = SimpleDateFormat("dd MMMM", ChatParams.locale)
-
-    val nowYear = formatYear.format(System.currentTimeMillis())
-    val currentYear = formatYear.format(timestamp)
-    val date = formatTime.format(timestamp)
-
-    val text = if (nowYear == currentYear) {
-        date
-    } else {
-        "$date $currentYear"
-    }
-    Text(
-        text = text,
-        modifier = Modifier
-            .padding(vertical = 4.dp)
-            .fillMaxWidth(),
-        textAlign = TextAlign.Center,
-        style = TextStyle(fontSize = 14.sp),
-        color = MaterialTheme.colors.secondaryVariant,
-    )
-}
-
-@Composable
 fun TextBubble(
     message: String,
     isUserMe: Boolean,
@@ -259,18 +343,15 @@ fun TextBubble(
     } else {
         MaterialTheme.colors.surface
     }
-    Column {
-        Surface(
-            color = backgroundBubbleColor,
-            shape = ChatBubbleShape,
-        ) {
-            Text(
-                text = message,
-                style = TextStyle(fontSize = 16.sp),
-                modifier = Modifier
-                    .padding(10.dp)
-                    .fillMaxWidth()
-            )
-        }
+    Surface(
+        color = backgroundBubbleColor,
+        shape = chatBubbleShape
+    ) {
+        Text(
+            text = message,
+            style = TextStyle(fontSize = 16.sp),
+            modifier = Modifier
+                .padding(10.dp)
+        )
     }
 }

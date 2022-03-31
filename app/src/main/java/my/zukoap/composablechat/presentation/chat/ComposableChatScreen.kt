@@ -18,10 +18,7 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemsIndexed
 import my.zukoap.composablechat.domain.entity.auth.Visitor
-import my.zukoap.composablechat.presentation.chat.components.ComposableChatAppBar
-import my.zukoap.composablechat.presentation.chat.components.DateText
-import my.zukoap.composablechat.presentation.chat.components.InfoMessage
-import my.zukoap.composablechat.presentation.chat.components.TextMessage
+import my.zukoap.composablechat.presentation.chat.components.*
 import my.zukoap.composablechat.presentation.chat.model.*
 import org.koin.androidx.compose.viewModel
 
@@ -76,7 +73,7 @@ fun ComposableChatScreen(
                         is InfoMessageItem -> InfoMessage(msg = message)
                         is FileMessageItem -> {}
                         is GifMessageItem -> {}
-                        is ImageMessageItem -> {}
+                        is ImageMessageItem -> ImageMessage(msg = message, updateData = composableViewModel::updateData)
                         is TransferMessageItem -> {}
                         is UnionMessageItem -> {}
                         is SeparateItem -> DateText(timestamp = message.timestamp)

@@ -3,6 +3,8 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/AndroidDev/ComposableChat/app/src/main/res/drawable/ic_baseline_broken_image_24.xml" value="0.1285" />
+        <entry key="..\:/AndroidDev/ComposableChat/app/src/main/res/drawable/ic_baseline_image_24.xml" value="0.1285" />
         <entry key="..\:/AndroidDev/ComposableChat/app/src/main/res/drawable/ic_check.xml" value="0.1" />
         <entry key="..\:/AndroidDev/ComposableChat/app/src/main/res/drawable/ic_double_check.xml" value="0.1" />
         <entry key="..\:/AndroidDev/ComposableChat/app/src/main/res/drawable/ic_launcher_background.xml" value="0.267" />
