@@ -2,37 +2,44 @@ package my.zukoap.composablechat.presentation.helper.ui
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.size.Size
 import java.net.URL
 import kotlin.math.min
 
 fun getSizeMediaFile(context: Context, url: String, resultSize: (height: Int?, width: Int?) -> Unit) {
-    Glide.with(context)
-        .asBitmap()
-        .load(url)
-        .into(object : CustomTarget<Bitmap>() {
-            override fun onLoadFailed(errorDrawable: Drawable?) {
-                super.onLoadFailed(errorDrawable)
+    val request = ImageRequest.Builder(context)
+        .data(url)
+        .target(
+            onStart = { placeholder ->
+                // Handle the placeholder drawable.
+            },
+            onSuccess = { result ->
+                // Handle the successful result.
+                val bitmap = (result as BitmapDrawable).bitmap
+                resultSize(bitmap.height, bitmap.width)
+            },
+            onError = { error ->
+                // Handle the error drawable.
                 resultSize(null, null)
             }
-            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                resultSize(resource.height, resource.width)
-            }
-            override fun onLoadCleared(placeholder: Drawable?) {}
-        })
+        )
+        .build()
+    context.imageLoader.enqueue(request)
 }
 
-fun getSizeMediaFile(context: Context, url: String): Pair<Int, Int>? {
+suspend fun getSizeMediaFile(context: Context, url: String): Pair<Int, Int>? {
     return try {
-        val resource = Glide.with(context)
-            .asBitmap()
-            .load(url)
-            .submit()
-            .get()
-        Pair(resource.height, resource.width)
+        val request = ImageRequest.Builder(context)
+            .data(url)
+            .size(Size.ORIGINAL)
+            .build()
+        val drawable = context.imageLoader.execute(request).drawable
+        val bitmap = (drawable as BitmapDrawable).bitmap
+        Pair(bitmap.height, bitmap.width)
     } catch (ex: Exception) {
         null
     }

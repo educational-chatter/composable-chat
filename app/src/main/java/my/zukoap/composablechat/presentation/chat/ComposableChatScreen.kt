@@ -69,19 +69,15 @@ fun ComposableChatScreen(
                     }
                     //val isLastMessageFromAuthor = !(next == null || next.authorName != message?.authorName)
                     when (message) {
-                        is TextMessageItem -> Box() {
-                            TextMessage(msg = message)
-                        }
-                        is InfoMessageItem -> Box() {
-                            InfoMessage(msg = message)
-                        }
-                        is DefaultMessageItem -> TODO()
-                        is FileMessageItem -> TODO()
-                        is GifMessageItem -> TODO()
-                        is ImageMessageItem -> TODO()
-                        is TransferMessageItem -> TODO()
-                        is UnionMessageItem -> TODO()
-                        null -> TODO() // qwerty
+                        is TextMessageItem -> TextMessage(msg = message, onActionClick = composableViewModel::selectAction)
+                        is InfoMessageItem -> InfoMessage(msg = message)
+                        is DefaultMessageItem -> {}
+                        is FileMessageItem -> {}
+                        is GifMessageItem -> {}
+                        is ImageMessageItem -> {}
+                        is TransferMessageItem -> {}
+                        is UnionMessageItem -> {}
+                        null -> {} // qwerty
                     }
                 }
             }
