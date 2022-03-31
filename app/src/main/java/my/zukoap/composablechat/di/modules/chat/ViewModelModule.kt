@@ -31,7 +31,6 @@ object ViewModelModule {
         context
     )
 
-    //TODO find out what the function below does
 
 *//*    @Provides
     @ChatScope

@@ -19,11 +19,11 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemsIndexed
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.presentation.chat.components.ComposableChatAppBar
+import my.zukoap.composablechat.presentation.chat.components.DateText
 import my.zukoap.composablechat.presentation.chat.components.InfoMessage
 import my.zukoap.composablechat.presentation.chat.components.TextMessage
 import my.zukoap.composablechat.presentation.chat.model.*
 import org.koin.androidx.compose.viewModel
-import java.lang.IndexOutOfBoundsException
 
 @Composable
 fun ComposableChatScreen(
@@ -60,24 +60,27 @@ fun ComposableChatScreen(
             0 -> Box {
                 Text(text = "Nothing to show", style = TextStyle(fontSize = 22.sp))
             }
-            else -> LazyColumn(reverseLayout= true,state = listState) {
+            else -> LazyColumn(reverseLayout = true, state = listState) {
                 itemsIndexed(lazyMessageItems) { index, message ->
                     val next = try {
                         lazyMessageItems[index + 1]
-                    } catch (e: IndexOutOfBoundsException){
+                    } catch (e: IndexOutOfBoundsException) {
                         null
                     }
                     //val isLastMessageFromAuthor = !(next == null || next.authorName != message?.authorName)
                     when (message) {
-                        is TextMessageItem -> TextMessage(msg = message, onActionClick = composableViewModel::selectAction)
+                        is TextMessageItem -> TextMessage(
+                            msg = message,
+                            onActionClick = composableViewModel::selectAction
+                        )
                         is InfoMessageItem -> InfoMessage(msg = message)
-                        is DefaultMessageItem -> {}
                         is FileMessageItem -> {}
                         is GifMessageItem -> {}
                         is ImageMessageItem -> {}
                         is TransferMessageItem -> {}
                         is UnionMessageItem -> {}
-                        null -> {} // qwerty
+                        is SeparateItem -> DateText(timestamp = message.timestamp)
+                        else -> {} // DefaultMessageItem is just an empty container (LinearLayout)
                     }
                 }
             }

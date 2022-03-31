@@ -19,10 +19,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import my.zukoap.composablechat.R
+import my.zukoap.composablechat.common.ChatParams
+import my.zukoap.composablechat.domain.entity.message.MessageType
 import my.zukoap.composablechat.presentation.chat.model.ActionItem
 import my.zukoap.composablechat.presentation.chat.model.InfoMessageItem
 import my.zukoap.composablechat.presentation.chat.model.Role
@@ -70,7 +70,8 @@ fun TextMessage(
                 authorName = msg.authorName,
                 authorPreview = msg.authorPreview,
                 timestamp = msg.timestamp,
-                isUserMe = msg.role == Role.USER
+                isUserMe = msg.role == Role.USER,
+                state = msg.stateCheck
             )
         }
     }
@@ -148,7 +149,13 @@ private fun ActionSurface(
 private val formatTime = SimpleDateFormat("HH:mm")
 
 @Composable
-private fun AuthorInfo(authorName: String, authorPreview: String?, timestamp: Long, isUserMe: Boolean) {
+private fun AuthorInfo(
+    authorName: String,
+    authorPreview: String?,
+    timestamp: Long,
+    isUserMe: Boolean,
+    state: MessageType
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,7 +172,7 @@ private fun AuthorInfo(authorName: String, authorPreview: String?, timestamp: Lo
                 placeholder = painterResource(R.drawable.ic_operator),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier =  Modifier
+                modifier = Modifier
                     .padding(end = 8.dp)
                     .size(32.dp)
                     .border(3.dp, MaterialTheme.colors.surface, CircleShape)
@@ -183,7 +190,63 @@ private fun AuthorInfo(authorName: String, authorPreview: String?, timestamp: Lo
             style = TextStyle(fontSize = 12.sp),
             color = MaterialTheme.colors.secondaryVariant
         )
+        if (isUserMe) {
+/*            when (state) {
+                MessageType.RECEIVED_BY_MEDIATO -> Icon(
+                    modifier = Modifier,
+                    painter = painterResource(id = R.drawable.ic_check),
+                    contentDescription = null,
+                    tint = contentColorFor(backgroundColor = MaterialTheme.colors.background)
+                )
+                MessageType.RECEIVED_BY_OPERATOR -> Icon(
+                    modifier = Modifier,
+                    painter = painterResource(id = R.drawable.ic_double_check),
+                    contentDescription = null,
+                    tint = contentColorFor(backgroundColor = MaterialTheme.colors.background)
+                )
+                else -> {}
+            }*/
+            Icon(
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(16.dp),
+                painter = painterResource(
+                    id = when (state) {
+                        MessageType.RECEIVED_BY_MEDIATO -> R.drawable.ic_check
+                        MessageType.RECEIVED_BY_OPERATOR -> R.drawable.ic_double_check
+                        else -> 0 // may cause problems, idk. But it is shorter than the case above
+                    }
+                ),
+                contentDescription = null,
+                tint = contentColorFor(backgroundColor = MaterialTheme.colors.background)
+            )
+        }
     }
+}
+
+@Composable
+fun DateText(timestamp: Long) {
+    val formatYear = SimpleDateFormat("yyyy")
+    val formatTime = SimpleDateFormat("dd MMMM", ChatParams.locale)
+
+    val nowYear = formatYear.format(System.currentTimeMillis())
+    val currentYear = formatYear.format(timestamp)
+    val date = formatTime.format(timestamp)
+
+    val text = if (nowYear == currentYear) {
+        date
+    } else {
+        "$date $currentYear"
+    }
+    Text(
+        text = text,
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .fillMaxWidth(),
+        textAlign = TextAlign.Center,
+        style = TextStyle(fontSize = 14.sp),
+        color = MaterialTheme.colors.secondaryVariant,
+    )
 }
 
 @Composable

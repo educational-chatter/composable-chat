@@ -4,10 +4,11 @@ package my.zukoap.composablechat.presentation.chat
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.paging.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import my.zukoap.composablechat.common.ChatParams
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
@@ -15,10 +16,10 @@ import my.zukoap.composablechat.domain.use_cases.*
 import my.zukoap.composablechat.presentation.*
 import my.zukoap.composablechat.presentation.base.BaseViewModel
 import my.zukoap.composablechat.presentation.chat.model.MessageModel
+import my.zukoap.composablechat.presentation.chat.model.SeparateItem
 import my.zukoap.composablechat.presentation.helper.mappers.messageModelMapper
 import java.text.SimpleDateFormat
 import java.util.*
-import javax.inject.Inject
 import my.zukoap.composablechat.domain.entity.file.File as DomainFile
 import java.io.File as IOFile
 
@@ -56,6 +57,7 @@ class ComposableChatViewModel(
     private var _mergeHistoryProgressVisible = MutableLiveData(false)
     val mergeHistoryProgressVisible: LiveData<Boolean> = _mergeHistoryProgressVisible
 
+    val formatTime = SimpleDateFormat("dd.MM.yyyy")
     val pagingSourceFactory = { messageUseCase.getAllMessages() }
     private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> = Pager(
         config = PagingConfig(ChatParams.pageSize, enablePlaceholders = false),
@@ -64,6 +66,22 @@ class ComposableChatViewModel(
     ).flow.map { pagingData ->
         pagingData.map { message ->
             messageModelMapper(message)
+        }.insertSeparators<MessageModel, MessageModel> { before, after ->
+            if (after == null) {
+                // we're at the end of the list
+                return@insertSeparators null
+            }
+
+            if (before == null) {
+                // we're at the beginning of the list
+                return@insertSeparators null
+            }
+            if (formatTime.format(before.timestamp) != formatTime.format(after.timestamp)) {
+                return@insertSeparators SeparateItem(before.timestamp)
+            } else {
+                // no separator
+                null
+            }
         }
     }.cachedIn(viewModelScope)
     val uploadMessagesForUser: Flow<PagingData<MessageModel>> = _uploadMessagesForUser

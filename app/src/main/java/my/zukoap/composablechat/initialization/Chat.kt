@@ -30,8 +30,6 @@ object Chat: KoinComponent {
     //internal fun getSdkComponent(): KoinSdkComponent = KoinSdkComponent()
         ?: throw IllegalStateException("You must call the init method before going to the chat.")
 
-    //TODO check where getSdkComponent() is used
-
     fun setOnChatMessageListener(listener: ChatMessageListener) {
         conditionUseCase?.setMessageListener(listener)
     }
