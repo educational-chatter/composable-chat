@@ -65,19 +65,29 @@ fun ComposableChatScreen(
                         null
                     }
                     //val isLastMessageFromAuthor = !(next == null || next.authorName != message?.authorName)
-                    when (message) {
-                        is TextMessageItem -> TextMessage(
-                            msg = message,
-                            onActionClick = composableViewModel::selectAction
-                        )
-                        is InfoMessageItem -> InfoMessage(msg = message)
-                        is FileMessageItem -> {}
-                        is GifMessageItem -> {}
-                        is ImageMessageItem -> ImageMessage(msg = message, updateData = composableViewModel::updateData)
-                        is TransferMessageItem -> {}
-                        is UnionMessageItem -> {}
-                        is SeparateItem -> DateText(timestamp = message.timestamp)
-                        else -> {} // DefaultMessageItem is just an empty container (LinearLayout)
+                    if (message != null) {
+                        RoleAlignedBox(message.role) {
+                            when (message) {
+                                is TextMessageItem -> TextMessage(
+                                    message = message,
+                                    onActionClick = composableViewModel::selectAction
+                                )
+                                is InfoMessageItem -> InfoMessage(message = message)
+                                is FileMessageItem -> FileMessage(
+                                    message = message,
+                                    onFileClick = composableViewModel::downloadOrOpenDocument
+                                )
+                                is GifMessageItem -> {}
+                                is ImageMessageItem -> ImageMessage(
+                                    message = message,
+                                    updateData = composableViewModel::updateData
+                                )
+                                is TransferMessageItem -> {}
+                                is UnionMessageItem -> {}
+                                is SeparateItem -> DateText(timestamp = message.timestamp)
+                                else -> {} // DefaultMessageItem is just an empty container (LinearLayout)
+                            }
+                        }
                     }
                 }
             }

@@ -12,76 +12,52 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import my.zukoap.composablechat.R
 import my.zukoap.composablechat.common.ChatParams
+import my.zukoap.composablechat.domain.entity.file.TypeDownloadProgress
+import my.zukoap.composablechat.domain.entity.file.TypeFile
 import my.zukoap.composablechat.domain.entity.message.MessageType
 import my.zukoap.composablechat.presentation.chat.model.*
+import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 
 private val chatBubbleShape = RoundedCornerShape(8.dp, 8.dp, 8.dp, 8.dp)
-private val formatTime = SimpleDateFormat("HH:mm", ChatParams.locale)
+private val formatTime = SimpleDateFormat("HH:mm")
 
 @Composable
 fun TextMessage(
-    msg: TextMessageItem,
-    //isFirstMessageByAuthor: Boolean,
-    //isLastMessageByAuthor: Boolean,
+    message: TextMessageItem,
     onActionClick: (messageId: String, actionId: String) -> Unit,
-    modifier: Modifier = Modifier
 ) {
-    Box(
-        contentAlignment = when (msg.role) {
-            Role.USER -> {
-                Alignment.CenterEnd
-            }
-            Role.OPERATOR -> {
-                Alignment.CenterStart
-            }
-            else -> {
-                Alignment.Center
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(modifier)
-    ) {
-        Column(
-            modifier = Modifier
-                .widthIn(0.dp, 360.dp)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalAlignment = when (msg.role) {
-                Role.USER -> {
-                    Alignment.End
-                }
-                Role.OPERATOR -> {
-                    Alignment.Start
-                }
-                else -> Alignment.CenterHorizontally
-            }
-        ) {
-            TextBubble(message = msg.message, isUserMe = msg.role == Role.USER)
-            if (msg.actions?.isNotEmpty() == true) {
-                ActionsList(
-                    actions = msg.actions,
-                    hasSelectedAction = msg.hasSelectedAction,
-                    onitemClick = { actionId -> onActionClick(msg.id, actionId) }
-                )
-            }
-            AuthorInfo(
-                authorName = msg.authorName,
-                authorPreview = msg.authorPreview,
-                timestamp = msg.timestamp,
-                isUserMe = msg.role == Role.USER,
-                state = msg.stateCheck
+    MessageBubble(message = message, bubbleMaxWidth = 360.dp) {
+        MessageSurface(role = message.role) {
+            Text(
+                text = message.message,
+                style = TextStyle(fontSize = 16.sp),
+                modifier = Modifier
+                    .padding(10.dp)
+            )
+        }
+        if (message.actions?.isNotEmpty() == true) {
+            ActionsList(
+                actions = message.actions,
+                hasSelectedAction = message.hasSelectedAction,
+                onItemClick = { actionId -> onActionClick(message.id, actionId) }
             )
         }
     }
@@ -89,15 +65,13 @@ fun TextMessage(
 
 @Composable
 fun InfoMessage(
-    msg: InfoMessageItem,
-    modifier: Modifier = Modifier
+    message: InfoMessageItem,
 ) {
     Text(
-        text = msg.message,
+        text = message.message,
         modifier = Modifier
             .padding(vertical = 4.dp)
-            .fillMaxWidth()
-            .then(modifier),
+            .fillMaxWidth(),
         textAlign = TextAlign.Center,
         style = TextStyle(fontSize = 14.sp),
         color = MaterialTheme.colors.secondaryVariant,
@@ -106,82 +80,130 @@ fun InfoMessage(
 
 @Composable
 fun ImageMessage(
-    msg: ImageMessageItem,
+    message: ImageMessageItem,
     updateData: (id: String, height: Int, width: Int) -> Unit,
-    modifier: Modifier = Modifier
 ) {
-    Box(
-        contentAlignment = when (msg.role) {
-            Role.USER -> {
-                Alignment.CenterEnd
-            }
-            Role.OPERATOR -> {
-                Alignment.CenterStart
-            }
-            else -> {
-                Alignment.Center
-            }
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(modifier)
-    ) {
-        Column(
-            modifier = Modifier
-                .widthIn(0.dp, 250.dp)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalAlignment = when (msg.role) {
-                Role.USER -> {
-                    Alignment.End
-                }
-                Role.OPERATOR -> {
-                    Alignment.Start
-                }
-                else -> Alignment.CenterHorizontally
-            }
-        ) {
-            val backgroundBubbleColor = if (msg.role == Role.USER) {
-                MaterialTheme.colors.primary
-            } else {
-                MaterialTheme.colors.surface
-            }
-            Surface(shape = chatBubbleShape, color = backgroundBubbleColor) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(msg.image.url)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = msg.image.name,
-                    onSuccess = { result ->
-                        if (msg.image.failLoading) {
-                            updateData(
-                                msg.id,
-                                result.result.drawable.intrinsicHeight,
-                                result.result.drawable.intrinsicWidth
-                            )
-                        }
-                    },
-                    placeholder = painterResource(id = R.drawable.ic_baseline_image_24),
-                    contentScale = ContentScale.FillBounds,
-                    error = painterResource(R.drawable.ic_baseline_broken_image_24),
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .background(backgroundBubbleColor)
-                        .clip(chatBubbleShape)
-                        .fillMaxWidth()
-                )
-            }
-            AuthorInfo(
-                authorName = msg.authorName,
-                authorPreview = msg.authorPreview,
-                timestamp = msg.timestamp,
-                isUserMe = msg.role == Role.USER,
-                state = msg.stateCheck
+    MessageBubble(message = message, bubbleMaxWidth = 300.dp) {
+        MessageSurface(role = message.role) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(message.image.url)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = message.image.name,
+                onSuccess = { result ->
+                    if (message.image.failLoading) {
+                        updateData(
+                            message.id,
+                            result.result.drawable.intrinsicHeight,
+                            result.result.drawable.intrinsicWidth
+                        )
+                    }
+                },
+                placeholder = painterResource(id = R.drawable.ic_baseline_image_24),
+                contentScale = ContentScale.Inside,
+                error = painterResource(R.drawable.ic_baseline_broken_image_24),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .background(roleColor(message.role))
+                    .clip(chatBubbleShape)
+                    .fillMaxWidth()
             )
         }
     }
 }
 
+@Composable
+fun FileMessage(
+    message: FileMessageItem,
+    onFileClick: (id: String, documentName: String, documentUrl: String) -> Unit
+) {
+    MessageBubble(message = message) {
+        MessageSurface(role = message.role) {
+            FileInfo(file = message.document, messageId = message.id, onFileClick = onFileClick)
+        }
+    }
+}
+
+@Composable
+private fun FileInfo(
+    file: FileModel,
+    messageId: String,
+    onFileClick: (id: String, documentName: String, documentUrl: String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .padding(12.dp)
+            .widthIn(0.dp, 160.dp), contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(start = 0.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+                    .size(36.dp)
+            ) {
+                val iconsColor = MaterialTheme.colors.onSurface
+                lateinit var painter: Painter
+                var contentDescription = ""
+                when (file.typeDownloadProgress) {
+                    TypeDownloadProgress.NOT_DOWNLOADED -> {
+                        painter = painterResource(id = R.drawable.ic_file_download)
+                        contentDescription = "File is not downloaded"
+                    }
+                    TypeDownloadProgress.DOWNLOADING -> {
+                        CircularProgressIndicator(progress = 0.75f)
+                        painter = painterResource(id = R.drawable.ic_close)
+                        contentDescription = "Downloading file"
+                    }
+                    TypeDownloadProgress.DOWNLOADED -> {
+                        painter = painterResource(id = R.drawable.ic_file)
+                        contentDescription = "File is downloaded"
+                    }
+                }
+                Icon(
+                    painter = painter,
+                    contentDescription = contentDescription,
+                    modifier = Modifier
+                        .clickable { onFileClick(messageId, file.name, file.url) },
+                    tint = iconsColor
+                )
+            }
+            Column(modifier = Modifier.padding(end = 4.dp)) {
+                Text(
+                    text = file.name,
+                    color = MaterialTheme.colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(text = file.sizeString(), color = MaterialTheme.colors.secondaryVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MessageBubble(
+    message: MessageModel,
+    bubbleMaxWidth: Dp = Dp.Unspecified,
+    content: @Composable () -> Unit
+) {
+    RoleAlignedColumn(
+        role = message.role,
+        modifier = Modifier
+            .widthIn(0.dp, bubbleMaxWidth)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        content()
+        AuthorInfo(
+            authorName = message.authorName,
+            authorPreview = message.authorPreview,
+            timestamp = message.timestamp,
+            isUserMe = message.role == Role.USER,
+            state = message.stateCheck
+        )
+    }
+}
 
 @Composable
 fun DateText(timestamp: Long) {
@@ -212,7 +234,7 @@ fun DateText(timestamp: Long) {
 private fun ActionsList(
     actions: List<ActionItem>,
     hasSelectedAction: Boolean,
-    onitemClick: (actionId: String) -> Unit
+    onItemClick: (actionId: String) -> Unit
 ) {
     Surface(
         modifier = Modifier.padding(top = 8.dp),
@@ -224,7 +246,7 @@ private fun ActionsList(
                 ActionSurface(
                     actionItem = actionItem,
                     hasSelectedAction = hasSelectedAction,
-                    onItemClick = { onitemClick(actionItem.id) }
+                    onItemClick = { onItemClick(actionItem.id) }
                 )
                 Divider(color = MaterialTheme.colors.secondaryVariant, thickness = 2.dp)
             }
@@ -244,7 +266,7 @@ private fun ActionSurface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(enabled = !hasSelectedAction) { onItemClick() },
-        color = if (actionItem.isSelected) MaterialTheme.colors.primary else MaterialTheme.colors.secondary,
+        color = color,
         contentColor = contentColorFor(backgroundColor = color),
     ) {
         Text(
@@ -334,24 +356,131 @@ private fun AuthorInfo(
 }
 
 @Composable
-fun TextBubble(
-    message: String,
-    isUserMe: Boolean,
+private fun MessageSurface(
+    role: Role,
+    modifier: Modifier = Modifier,
+    color: Color = roleColor(role = role),
+    contentColor: Color = contentColorFor(color),
+    border: BorderStroke? = null,
+    elevation: Dp = 0.dp,
+    content: @Composable () -> Unit
 ) {
-    val backgroundBubbleColor = if (isUserMe) {
+    Surface(
+        modifier = modifier,
+        shape = chatBubbleShape,
+        color = color,
+        contentColor = contentColor,
+        border = border,
+        elevation = elevation
+    ) {
+        content()
+    }
+}
+
+@Composable
+inline fun RoleAlignedColumn(
+    role: Role,
+    modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = verticalArrangement,
+        horizontalAlignment = when (role) {
+            Role.USER -> {
+                Alignment.End
+            }
+            Role.OPERATOR -> {
+                Alignment.Start
+            }
+            else -> Alignment.CenterHorizontally
+        }
+    ) {
+        content()
+    }
+}
+
+@Composable
+inline fun RoleAlignedBox(
+    role: Role,
+    modifier: Modifier = Modifier,
+    propagateMinConstraints: Boolean = false,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        contentAlignment = when (role) {
+            Role.USER -> {
+                Alignment.CenterEnd
+            }
+            Role.OPERATOR -> {
+                Alignment.CenterStart
+            }
+            else -> {
+                Alignment.Center
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(modifier),
+        propagateMinConstraints = propagateMinConstraints
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun roleColor(role: Role): Color {
+    return if (role == Role.USER) {
         MaterialTheme.colors.primary
     } else {
         MaterialTheme.colors.surface
     }
-    Surface(
-        color = backgroundBubbleColor,
-        shape = chatBubbleShape
-    ) {
-        Text(
-            text = message,
-            style = TextStyle(fontSize = 16.sp),
-            modifier = Modifier
-                .padding(10.dp)
-        )
+}
+
+@Composable
+private fun FileModel.sizeString(): String {
+    if (this.size == null) return ""
+    val df = DecimalFormat("#.##")
+    val countByteInKByte = 1000L
+    val countByteInMByte = 1000L * 1000L
+    val countByteInGByte = 1000L * 1000L * 1000L
+    return when (this.size) {
+        in 0L until countByteInKByte -> "${this.size} ${stringResource(R.string.com_crafttalk_chat_file_size_byte)}"
+        in countByteInKByte until countByteInMByte -> {
+            val value = this.size.toDouble() / countByteInKByte
+            "${
+                (df.parse(df.format(value)).toDouble())
+            } ${stringResource(R.string.com_crafttalk_chat_file_size_Kb)}"
+        }
+        in countByteInMByte until countByteInGByte -> {
+            val value = this.size.toDouble() / countByteInMByte
+            "${
+                (df.parse(df.format(value)).toDouble())
+            } ${stringResource(R.string.com_crafttalk_chat_file_size_Mb)}"
+        }
+        in countByteInGByte until countByteInGByte * 1000L -> {
+            val value = this.size.toDouble() / countByteInGByte
+            "${
+                (df.parse(df.format(value)).toDouble())
+            } ${stringResource(R.string.com_crafttalk_chat_file_size_Gb)}"
+        }
+        else -> ""
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FilePrevDownloading() {
+    val file = FileModel("wow", "mark.pdf", 750000, type = TypeFile.FILE)
+    file.typeDownloadProgress = TypeDownloadProgress.DOWNLOADING
+    FileInfo(file = file, "145") { id, name, url -> }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun FilePrevNotDownloaded() {
+    val file = FileModel("wow", "mark.pdf", 750000, type = TypeFile.FILE)
+    file.typeDownloadProgress = TypeDownloadProgress.NOT_DOWNLOADED
+    FileInfo(file = file, "145") { id, name, url -> }
 }
