@@ -7,21 +7,22 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import my.zukoap.composablechat.R
 import my.zukoap.composablechat.common.*
-import my.zukoap.composablechat.di.KoinSdkComponent
 import my.zukoap.composablechat.domain.entity.auth.Visitor
-import my.zukoap.composablechat.domain.use_cases.*
+import my.zukoap.composablechat.domain.use_cases.AuthUseCase
+import my.zukoap.composablechat.domain.use_cases.ConditionUseCase
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.*
 
-object Chat: KoinComponent {
+object Chat : KoinComponent {
 
     private val job = Job()
     private val scopeIO = CoroutineScope(Dispatchers.IO + job)
     private val scopeUI = CoroutineScope(Dispatchers.Main + job)
 
-    private val conditionUseCase:ConditionUseCase by inject()
-  //  private val visitorUseCase: VisitorUseCase by inject()
+    private val conditionUseCase: ConditionUseCase by inject()
+
+    //  private val visitorUseCase: VisitorUseCase by inject()
     private val authUseCase: AuthUseCase by inject()
 /*    private val notificationUseCase: NotificationUseCase by inject()
     private val personUseCase: PersonUseCase by inject()*/
@@ -90,42 +91,42 @@ object Chat: KoinComponent {
         ChatParams.fileReadTimeout = fileReadTimeout
         ChatParams.fileWriteTimeout = fileWriteTimeout
         ChatParams.fileCallTimeout = fileCallTimeout
-       // initDI(context)
+        // initDI(context)
     }
 
     fun createSession() {
-        conditionUseCase?.createSessionChat()
+        conditionUseCase.createSessionChat()
     }
 
     fun destroySession() {
-        conditionUseCase?.destroySessionChat()
+        conditionUseCase.destroySessionChat()
     }
 
     fun wakeUp(visitor: Visitor?) {
-        conditionUseCase?.openApp()
-        authUseCase?.logIn(
+        conditionUseCase.openApp()
+        authUseCase.logIn(
             visitor = visitor
         )
     }
 
     fun wakeUp() {
-        conditionUseCase?.openApp()
+        conditionUseCase.openApp()
     }
 
     fun drop() {
-        conditionUseCase?.closeApp()
-        conditionUseCase?.dropChat()
+        conditionUseCase.closeApp()
+        conditionUseCase.dropChat()
     }
 
     fun logOut(context: Context) {
         scopeIO.launch {
-            authUseCase?.logOut(context.filesDir)
+            authUseCase.logOut(context.filesDir)
         }
     }
 
     fun logOutWithUIActionAfter(context: Context, actionUIAfterLogOut: () -> Unit) {
         scopeIO.launch {
-            authUseCase?.logOut(context.filesDir)
+            authUseCase.logOut(context.filesDir)
             scopeUI.launch {
                 actionUIAfterLogOut()
             }
@@ -134,7 +135,7 @@ object Chat: KoinComponent {
 
     fun logOutWithIOActionAfter(context: Context, actionIOAfterLogOut: () -> Unit) {
         scopeIO.launch {
-            authUseCase?.logOut(context.filesDir)
+            authUseCase.logOut(context.filesDir)
             actionIOAfterLogOut()
         }
     }

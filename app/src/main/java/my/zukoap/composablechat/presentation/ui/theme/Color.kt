@@ -16,3 +16,5 @@ val secondaryDarkColor = Color(0xFF9B9D9E)
 val surfaceColor = Color(0xFFE5E5E5)
 val primaryTextColor = Color(0xFF000000)
 val secondaryTextColor = Color(0xFF000000)
+
+val hyperlinkColor = Color(0xFF2E7D32)

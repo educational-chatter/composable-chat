@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.paging.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
@@ -38,6 +39,8 @@ class ComposableChatViewModel(
     var currentReadMessageTime = conditionUseCase.getCurrentReadMessageTime()
     var isAllHistoryLoaded = conditionUseCase.checkFlagAllHistoryLoaded()
     var initialLoadKey = conditionUseCase.getInitialLoadKey()
+
+    /*TODO livedata -> state*/
 
     private var _countUnreadMessages = MutableLiveData<Int>()
     val countUnreadMessages: LiveData<Int> = _countUnreadMessages
@@ -299,7 +302,7 @@ class ComposableChatViewModel(
                 documentUrl = documentUrl,
                 directory = context.filesDir,
                 openDocument = { documentFile ->
-//                    delay(ChatAttr.getInstance().delayDownloadDocument)
+                    delay(1000L)
                     _openDocument.postValue(Pair(documentFile, true))
                 },
                 downloadedFail = {

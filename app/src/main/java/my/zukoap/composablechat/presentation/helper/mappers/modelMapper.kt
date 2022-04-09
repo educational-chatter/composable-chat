@@ -9,6 +9,7 @@ import my.zukoap.composablechat.domain.entity.file.TypeFile
 import my.zukoap.composablechat.domain.entity.message.MessageType
 import my.zukoap.composablechat.domain.entity.message.MessageType.Companion.getMessageTypeByValueType
 import my.zukoap.composablechat.presentation.chat.model.*
+import my.zukoap.composablechat.presentation.helper.converters.convertToAnnotatedString
 
 fun messageModelMapper(localMessage: MessageEntity): MessageModel {
     return when {
@@ -20,13 +21,13 @@ fun messageModelMapper(localMessage: MessageEntity): MessageModel {
         )
         localMessage.message != null && localMessage.messageType == MessageType.INFO_MESSAGE.valueType -> InfoMessageItem(
             localMessage.id,
-            localMessage.message,//.convertToSpannableString(false, localMessage.spanStructureList, context),
+            localMessage.message.convertToAnnotatedString(localMessage.spanStructureList),//.convertToSpannableString(false, localMessage.spanStructureList, context),
             localMessage.timestamp
         )
         (localMessage.message != null && localMessage.message.isNotEmpty()) && (localMessage.attachmentUrl == null) -> TextMessageItem(
             localMessage.id,
             if (localMessage.isReply) Role.OPERATOR else Role.USER,
-            localMessage.message,//.convertToSpannableString(!localMessage.isReply, localMessage.spanStructureList, context),
+            localMessage.message.convertToAnnotatedString(localMessage.spanStructureList),//.convertToSpannableString(!localMessage.isReply, localMessage.spanStructureList, context),
             localMessage.actions?.let { listAction -> actionModelMapper(listAction) },
             localMessage.hasSelectedAction(),
             repliedMessage = RepliedMessageModel.map(localMessage),
@@ -84,7 +85,7 @@ fun messageModelMapper(localMessage: MessageEntity): MessageModel {
         (localMessage.message != null && localMessage.message.isNotEmpty()) && (!localMessage.attachmentUrl.isNullOrEmpty() && !localMessage.attachmentName.isNullOrEmpty() && localMessage.attachmentType != null) -> UnionMessageItem(
             localMessage.id,
             if (localMessage.isReply) Role.OPERATOR else Role.USER,
-            localMessage.message,//.convertToSpannableString(!localMessage.isReply, localMessage.spanStructureList, context),
+            localMessage.message.convertToAnnotatedString(localMessage.spanStructureList),//.convertToSpannableString(!localMessage.isReply, localMessage.spanStructureList, context),
             localMessage.actions?.let { listAction -> actionModelMapper(listAction) },
             localMessage.hasSelectedAction(),
             FileModel(

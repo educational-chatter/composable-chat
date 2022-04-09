@@ -48,9 +48,12 @@ fun ComposableChatScreen(
                 lifecycleOwner.lifecycle.removeObserver(observer)
             }
         }
-        if (isFirstUploadMessages) {
+/*        if (isFirstUploadMessages) {
             composableViewModel.uploadMessages()
-        }
+        }*/
+
+        /*TODO add observers*/
+
         val lazyMessageItems: LazyPagingItems<MessageModel> =
             composableViewModel.uploadMessagesForUser.collectAsLazyPagingItems()
         when (lazyMessageItems.itemCount) {
@@ -82,7 +85,7 @@ fun ComposableChatScreen(
                                     message = message,
                                     updateData = composableViewModel::updateData
                                 )
-                                is TransferMessageItem -> {}
+                                is TransferMessageItem -> TransferMessage(message = message)
                                 is UnionMessageItem -> {}
                                 is SeparateItem -> DateText(timestamp = message.timestamp)
                                 else -> {} // DefaultMessageItem is just an empty container (LinearLayout)

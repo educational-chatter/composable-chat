@@ -1,5 +1,7 @@
 package my.zukoap.composablechat.presentation.chat.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -46,12 +50,30 @@ fun TextMessage(
 ) {
     MessageBubble(message = message, bubbleMaxWidth = 360.dp) {
         MessageSurface(role = message.role) {
-            Text(
+            val uriHandler = LocalUriHandler.current
+            val context = LocalContext.current
+            ClickableText(
                 text = message.message,
-                style = TextStyle(fontSize = 16.sp),
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    color = contentColorFor(backgroundColor = roleColor(message.role)) // TODO: Content color doesn't inherit from surface. dky
+                ),
                 modifier = Modifier
                     .padding(10.dp)
-            )
+            ) {
+                message.message
+                    .getStringAnnotations("URL", it, it)
+                    .firstOrNull()?.let { stringAnnotation ->
+                        uriHandler.openUri(stringAnnotation.item)
+                    }
+                message.message
+                    .getStringAnnotations("Phone", it, it)
+                    .firstOrNull()?.let { stringAnnotation ->
+                        val intent =
+                            Intent(Intent.ACTION_DIAL, Uri.parse("tel:${stringAnnotation.item}"))
+                        context.startActivity(intent)
+                    }
+            }
         }
         if (message.actions?.isNotEmpty() == true) {
             ActionsList(
@@ -67,15 +89,28 @@ fun TextMessage(
 fun InfoMessage(
     message: InfoMessageItem,
 ) {
-    Text(
+    val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    ClickableText(
         text = message.message,
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxWidth(),
-        textAlign = TextAlign.Center,
-        style = TextStyle(fontSize = 14.sp),
-        color = MaterialTheme.colors.secondaryVariant,
-    )
+        style = TextStyle(fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colors.secondaryVariant),
+    ){
+        message.message
+            .getStringAnnotations("URL", it, it)
+            .firstOrNull()?.let { stringAnnotation ->
+                uriHandler.openUri(stringAnnotation.item)
+            }
+        message.message
+            .getStringAnnotations("Phone", it, it)
+            .firstOrNull()?.let { stringAnnotation ->
+                val intent =
+                    Intent(Intent.ACTION_DIAL, Uri.parse("tel:${stringAnnotation.item}"))
+                context.startActivity(intent)
+            }
+    }
 }
 
 @Composable
@@ -121,6 +156,20 @@ fun FileMessage(
     MessageBubble(message = message) {
         MessageSurface(role = message.role) {
             FileInfo(file = message.document, messageId = message.id, onFileClick = onFileClick)
+        }
+    }
+}
+
+@Composable
+fun TransferMessage(message: TransferMessageItem) {
+    MessageBubble(message = message, bubbleMaxWidth = 360.dp) {
+        MessageSurface(role = message.role) {
+            Text(
+                text = stringResource(id = R.string.chat_message_join, message.authorName),
+                style = TextStyle(fontSize = 16.sp),
+                modifier = Modifier
+                    .padding(10.dp)
+            )
         }
     }
 }
@@ -446,24 +495,24 @@ private fun FileModel.sizeString(): String {
     val countByteInMByte = 1000L * 1000L
     val countByteInGByte = 1000L * 1000L * 1000L
     return when (this.size) {
-        in 0L until countByteInKByte -> "${this.size} ${stringResource(R.string.com_crafttalk_chat_file_size_byte)}"
+        in 0L until countByteInKByte -> "${this.size} ${stringResource(R.string.chat_file_size_byte)}"
         in countByteInKByte until countByteInMByte -> {
             val value = this.size.toDouble() / countByteInKByte
             "${
                 (df.parse(df.format(value)).toDouble())
-            } ${stringResource(R.string.com_crafttalk_chat_file_size_Kb)}"
+            } ${stringResource(R.string.chat_file_size_Kb)}"
         }
         in countByteInMByte until countByteInGByte -> {
             val value = this.size.toDouble() / countByteInMByte
             "${
                 (df.parse(df.format(value)).toDouble())
-            } ${stringResource(R.string.com_crafttalk_chat_file_size_Mb)}"
+            } ${stringResource(R.string.chat_file_size_Mb)}"
         }
         in countByteInGByte until countByteInGByte * 1000L -> {
             val value = this.size.toDouble() / countByteInGByte
             "${
                 (df.parse(df.format(value)).toDouble())
-            } ${stringResource(R.string.com_crafttalk_chat_file_size_Gb)}"
+            } ${stringResource(R.string.chat_file_size_Gb)}"
         }
         else -> ""
     }
@@ -483,4 +532,16 @@ fun FilePrevNotDownloaded() {
     val file = FileModel("wow", "mark.pdf", 750000, type = TypeFile.FILE)
     file.typeDownloadProgress = TypeDownloadProgress.NOT_DOWNLOADED
     FileInfo(file = file, "145") { id, name, url -> }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TransferMessagepPreview() {
+    val msg = TransferMessageItem(
+        id = "2626992f2252",
+        timestamp = 1648932862265,
+        authorName = "Кир",
+        authorPreview = null
+    )
+    TransferMessage(message = msg)
 }

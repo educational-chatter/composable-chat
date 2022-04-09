@@ -8,23 +8,26 @@
 
     <!--    Patterns phone-->
     <string-array name="phone_patterns">
-        <item>\\+[0–9]{13}</item>
-        <item>\\+[0–9]{12}</item>
-        <item>\\+[0–9]{11}</item>
-        <item>\\+[0–9]{9}</item>
-        <item>[0–9]{11}</item>
-        <item>\\+7 \\([0–9]{3}\\) [0–9]{3}–[0–9]{2}–[0–9]{2}</item>
-        <item>\\+7\\([0–9]{3}\\)–[0–9]{3}–[0–9]{2}–[0–9]{2}</item>
-        <item>\\+7 [0–9]{3} [0–9]{3} [0–9]{2} [0–9]{2}</item>
-        <item>\\+7 [0–9]{3} [0–9]{3}–[0–9]{2}–[0–9]{2}</item>
-        <item>[0–9] [0–9]{3} [0–9]{3}–[0–9]{2}–[0–9]{2}</item>
+        <item>\\+[0-9]{13}</item>
+        <item>\\+[0-9]{12}</item>
+        <item>\\+[0-9]{11}</item>
+        <item>\\+[0-9]{9}</item>
+        <item>[0-9]{11}</item>
+        <item>\\+7 \\([0-9]{3}\\) [0-9]{3}-[0-9]{2}-[0-9]{2}</item>
+        <item>\\+7\\([0-9]{3}\\)-[0-9]{3}-[0-9]{2}-[0-9]{2}</item>
+        <item>\\+7 [0-9]{3} [0-9]{3} [0-9]{2} [0-9]{2}</item>
+        <item>\\+7 [0-9]{3} [0-9]{3}-[0-9]{2}-[0-9]{2}</item>
+        <item>[0-9] [0-9]{3} [0-9]{3}-[0-9]{2}-[0-9]{2}</item>
     </string-array>
 
+    <!--    Message-->
+    <string name="chat_message_join">Оператор %s подключился к диалогу</string>
+
     <!--    File-->
-    <string name="com_crafttalk_chat_file_size_byte">байт</string>
-    <string name="com_crafttalk_chat_file_size_Kb">Кб</string>
-    <string name="com_crafttalk_chat_file_size_Mb">Мб</string>
-    <string name="com_crafttalk_chat_file_size_Gb">Гб</string>
+    <string name="chat_file_size_byte">байт</string>
+    <string name="chat_file_size_Kb">Кб</string>
+    <string name="chat_file_size_Mb">Мб</string>
+    <string name="chat_file_size_Gb">Гб</string>
 
     <string name="salt">C~kW]cq76(a?m[UbJ)drw+Wh6>W[3Wsj</string>
 
