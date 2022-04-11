@@ -1,5 +1,6 @@
 package my.zukoap.composablechat.data.paging
 
+import android.util.Log
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
@@ -31,6 +32,7 @@ class ChatRemoteMediator(
         state: PagingState<Int, MessageEntity>
     ): MediatorResult {
         return try {
+            Log.d("LOADTYPE", loadType.toString())
             val loadKey = when (loadType) {
                 LoadType.REFRESH ->
                     // In this example, you never need to prepend, since REFRESH

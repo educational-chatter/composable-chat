@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import my.zukoap.composablechat.common.ChatParams
@@ -85,7 +86,7 @@ class ComposableChatViewModel(
                 null
             }
         }
-    }.cachedIn(viewModelScope)
+    }.filterNotNull().cachedIn(viewModelScope) // .filterNotNull() may be redundant here
     val uploadMessagesForUser: Flow<PagingData<MessageModel>> = _uploadMessagesForUser
 
     private var _replyMessage: MutableLiveData<MessageModel?> = MutableLiveData(null)

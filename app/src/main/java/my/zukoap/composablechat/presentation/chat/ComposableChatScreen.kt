@@ -182,7 +182,10 @@ fun ComposableChatScreen(
                                         message = message,
                                         onFileClick = composableViewModel::downloadOrOpenDocument
                                     )
-                                    is GifMessageItem -> {}
+                                    is GifMessageItem -> GifMessage(
+                                        message = message,
+                                        updateData = composableViewModel::updateData
+                                    )
                                     is ImageMessageItem -> ImageMessage(
                                         message = message,
                                         updateData = composableViewModel::updateData

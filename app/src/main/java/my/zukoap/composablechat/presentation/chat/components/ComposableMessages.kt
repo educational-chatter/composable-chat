@@ -2,6 +2,7 @@ package my.zukoap.composablechat.presentation.chat.components
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build.VERSION.SDK_INT
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,7 +30,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ComponentRegistry
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
 import my.zukoap.composablechat.R
 import my.zukoap.composablechat.common.ChatParams
@@ -96,8 +101,12 @@ fun InfoMessage(
         modifier = Modifier
             .padding(vertical = 4.dp)
             .fillMaxWidth(),
-        style = TextStyle(fontSize = 14.sp, textAlign = TextAlign.Center, color = MaterialTheme.colors.secondaryVariant),
-    ){
+        style = TextStyle(
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colors.secondaryVariant
+        ),
+    ) {
         message.message
             .getStringAnnotations("URL", it, it)
             .firstOrNull()?.let { stringAnnotation ->
@@ -137,6 +146,52 @@ fun ImageMessage(
                 },
                 placeholder = painterResource(id = R.drawable.ic_baseline_image_24),
                 contentScale = ContentScale.Inside,
+                error = painterResource(R.drawable.ic_baseline_broken_image_24),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .background(roleColor(message.role))
+                    .clip(chatBubbleShape)
+                    .fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+fun GifMessage(
+    message: GifMessageItem,
+    updateData: (id: String, height: Int, width: Int) -> Unit,
+) {
+    MessageBubble(message = message, bubbleMaxWidth = 300.dp) {
+        MessageSurface(role = message.role) {
+            val context = LocalContext.current
+            val imageLoader = ImageLoader.Builder(context = context)
+                .components(fun ComponentRegistry.Builder.() {
+                    if (SDK_INT >= 28) {
+                        add(ImageDecoderDecoder.Factory())
+                    } else {
+                        add(GifDecoder.Factory())
+                    }
+                })
+                .build()
+            AsyncImage(
+                model = ImageRequest.Builder(context = context)
+                    .data(message.gif.url)
+                    .crossfade(true)
+                    .build(),
+                imageLoader = imageLoader,
+                contentDescription = message.gif.name,
+                onSuccess = { result ->
+                    if (message.gif.failLoading) {
+                        updateData(
+                            message.id,
+                            result.result.drawable.intrinsicHeight,
+                            result.result.drawable.intrinsicWidth
+                        )
+                    }
+                },
+                placeholder = painterResource(id = R.drawable.ic_baseline_image_24),
+                contentScale = ContentScale.FillWidth, // May cause problem with narrow GIFs, but ContentScale.Inside leave grey bars on both sides
                 error = painterResource(R.drawable.ic_baseline_broken_image_24),
                 modifier = Modifier
                     .padding(8.dp)
