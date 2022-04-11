@@ -282,7 +282,7 @@ class SocketApi constructor(
 
 
     fun sendMessage(message: String, repliedMessage: NetworkMessage?) {
-/*        if (ChatAttr.getInstance().replyEnable) {
+       if (false) {
             val repliedMessageJSONObject = repliedMessage?.let {
                 JSONObject(gson.toJson(it))
             }
@@ -297,7 +297,7 @@ class SocketApi constructor(
                 repliedMessageJSONObject,
                 null
             )
-        } else {*/
+        } else {
             socket?.emit(
                 "visitor-message",
                 message,
@@ -308,7 +308,7 @@ class SocketApi constructor(
                 null,
                 null
             )
-        //}
+        }
     }
 
     fun selectAction(actionId: String) {
@@ -342,9 +342,9 @@ class SocketApi constructor(
         }
         socket?.emit("history-messages-requested", timestamp, visitor.token, ChatParams.urlChatHost) ?: channel.send(null)
 
-        return viewModelScope.async {
+        return withContext(viewModelScope.coroutineContext) {
             channel.receive()
-        }.await()
+        }
     }
 
     fun closeHistoryListener() {

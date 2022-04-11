@@ -1,17 +1,20 @@
 package my.zukoap.composablechat.domain.use_cases
 
-import androidx.paging.DataSource
-import androidx.paging.PagingSource
+import androidx.lifecycle.viewModelScope
+import androidx.paging.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import my.zukoap.composablechat.data.local.db.database.ChatDatabase
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
+import my.zukoap.composablechat.data.paging.ChatRemoteMediator
 import my.zukoap.composablechat.domain.repository.ConditionRepository
 import my.zukoap.composablechat.domain.repository.MessageRepository
-import javax.inject.Inject
 
 class MessageUseCase(
     private val messageRepository: MessageRepository,
     private val conditionRepository: ConditionRepository,
     private val visitorUseCase: VisitorUseCase,
-    private val personUseCase: PersonUseCase
+    private val personUseCase: PersonUseCase,
 ) {
 
     fun getAllMessages(): PagingSource<Int, MessageEntity> =
@@ -21,12 +24,29 @@ class MessageUseCase(
         return if (timestampLastMessage == null) {
             messageRepository.getCountUnreadMessages(currentReadMessageTime)
         } else {
-            messageRepository.getCountUnreadMessagesRange(currentReadMessageTime, timestampLastMessage)
+            messageRepository.getCountUnreadMessagesRange(
+                currentReadMessageTime,
+                timestampLastMessage
+            )
         }
     }
 
+    @OptIn(ExperimentalPagingApi::class)
+    fun getPager(scope: CoroutineScope): Pager<Int, MessageEntity> {
+        val countUnreadMessages = conditionRepository.getCountUnreadMessages()
+        val visitor = visitorUseCase.getVisitor()!!
+        ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor)
+        return Pager(
+            config = PagingConfig(20, enablePlaceholders = false),
+            initialKey = if (countUnreadMessages > 0) countUnreadMessages - 1  else 0,
+            remoteMediator = ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor),
+            pagingSourceFactory = { messageRepository.getMessages() }
+        )
+    }
+
     fun getCountMessagesInclusiveTimestampById(messageId: String): Int? {
-        return messageRepository.getTimestampMessageById(messageId)?.run(messageRepository::getCountMessagesInclusiveTimestamp)
+        return messageRepository.getTimestampMessageById(messageId)
+            ?.run(messageRepository::getCountMessagesInclusiveTimestamp)
     }
 
     suspend fun sendMessage(message: String, repliedMessageId: String?) {
@@ -78,12 +98,13 @@ class MessageUseCase(
         eventAllHistoryLoaded: () -> Unit
     ) {
         val visitor = visitorUseCase.getVisitor() ?: return
-        val syncMessagesAcrossDevicesWrapper: (countUnreadMessages: Int) -> Unit = { countUnreadMessages ->
-            syncMessagesAcrossDevices(
-                if (countUnreadMessages > 0) countUnreadMessages - 1
-                else 0
-            )
-        }
+        val syncMessagesAcrossDevicesWrapper: (countUnreadMessages: Int) -> Unit =
+            { countUnreadMessages ->
+                syncMessagesAcrossDevices(
+                    if (countUnreadMessages > 0) countUnreadMessages - 1
+                    else 0
+                )
+            }
 
         if (conditionRepository.getStatusExistenceMessages()) {
             messageRepository.getTimeLastMessage()?.let { lastMessageTime ->
@@ -104,23 +125,23 @@ class MessageUseCase(
             }
         } else {
 //            if (remoteReadMessageTime == 0L) {
-                val messages = messageRepository.uploadMessages(
-                    uuid = visitor.uuid,
-                    startTime = null,
-                    endTime = 0,
-                    updateReadPoint = updateReadPoint,
-                    syncMessagesAcrossDevices = syncMessagesAcrossDevices,
-                    returnedEmptyPool = {
-                        eventAllHistoryLoaded()
-                        conditionRepository.saveFlagAllHistoryLoaded(true)
-                    },
-                    getPersonPreview = { personId ->
-                        personUseCase.getPersonPreview(personId, visitor.token)
-                    },
-                    getFileInfo = messageRepository::getFileInfo
-                )
-                messageRepository.updatePersonNames(messages, personUseCase::updatePersonName)
-                messageRepository.mergeNewMessages()
+            val messages = messageRepository.uploadMessages(
+                uuid = visitor.uuid,
+                startTime = null,
+                endTime = 0,
+                updateReadPoint = updateReadPoint,
+                syncMessagesAcrossDevices = syncMessagesAcrossDevices,
+                returnedEmptyPool = {
+                    eventAllHistoryLoaded()
+                    conditionRepository.saveFlagAllHistoryLoaded(true)
+                },
+                getPersonPreview = { personId ->
+                    personUseCase.getPersonPreview(personId, visitor.token)
+                },
+                getFileInfo = messageRepository::getFileInfo
+            )
+            messageRepository.updatePersonNames(messages, personUseCase::updatePersonName)
+            messageRepository.mergeNewMessages()
 //            } else {
 //                val messages = messageRepository.uploadMessages(
 //                    uuid = visitor.uuid,

@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import my.zukoap.composablechat.common.ChatParams
+import my.zukoap.composablechat.data.local.db.database.ChatDatabase
+import my.zukoap.composablechat.data.paging.ChatRemoteMediator
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
 import my.zukoap.composablechat.domain.use_cases.*
@@ -33,7 +35,7 @@ class ComposableChatViewModel(
     private val feedbackUseCase: FeedbackUseCase,
     private val configurationUseCase: ConfigurationUseCase,
     //private val savedStateHandle: SavedStateHandle,
-    private val context: Context
+    private val context: Context,
 ) : BaseViewModel() {
 
     var currentReadMessageTime = conditionUseCase.getCurrentReadMessageTime()
@@ -61,12 +63,9 @@ class ComposableChatViewModel(
     val mergeHistoryProgressVisible: LiveData<Boolean> = _mergeHistoryProgressVisible
 
     val formatTime = SimpleDateFormat("dd.MM.yyyy")
-    val pagingSourceFactory = { messageUseCase.getAllMessages() }
-    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> = Pager(
-        config = PagingConfig(ChatParams.pageSize, enablePlaceholders = false),
-        initialKey = initialLoadKey,
-        pagingSourceFactory = pagingSourceFactory
-    ).flow.map { pagingData ->
+    val pager = messageUseCase.getPager(viewModelScope)
+    @OptIn(ExperimentalPagingApi::class)
+    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> = pager.flow.map { pagingData ->
         pagingData.map { message ->
             messageModelMapper(message)
         }.insertSeparators<MessageModel, MessageModel> { before, after ->
@@ -97,10 +96,11 @@ class ComposableChatViewModel(
 
     @OptIn(ExperimentalPagingApi::class)
     fun uploadMessages() {
-        val pagingSourceFactory = { messageUseCase.getAllMessages() }
+/*        val pagingSourceFactory = { messageUseCase.getAllMessages() }
         val pager = Pager(
             config = PagingConfig(ChatParams.pageSize, enablePlaceholders = false),
             initialKey = initialLoadKey,
+            remoteMediator = ChatRemoteMediator(chatDatabase = db, messageUseCase = messageUseCase, conditionUseCase = conditionUseCase, syncMessagesAcrossDevices = ::syncMessagesAcrossDevices),
             pagingSourceFactory = pagingSourceFactory
         )
         val formatTime = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -108,7 +108,7 @@ class ComposableChatViewModel(
             pagingData.map { message ->
                 messageModelMapper(message)
             }
-        }.cachedIn(viewModelScope)
+        }*/
     }
 
 

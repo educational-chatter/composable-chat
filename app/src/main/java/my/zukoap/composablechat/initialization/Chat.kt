@@ -32,7 +32,7 @@ object Chat : KoinComponent {
         ?: throw IllegalStateException("You must call the init method before going to the chat.")
 
     fun setOnChatMessageListener(listener: ChatMessageListener) {
-        conditionUseCase?.setMessageListener(listener)
+        conditionUseCase.setMessageListener(listener)
     }
 
 /*    private fun initDI(context: Context) {

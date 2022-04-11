@@ -1,7 +1,6 @@
 package my.zukoap.composablechat.domain.repository
 
 import android.content.Context
-import androidx.paging.DataSource
 import androidx.paging.PagingSource
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
 import my.zukoap.composablechat.domain.entity.file.TypeDownloadProgress
@@ -56,7 +55,10 @@ interface MessageRepository {
 
     fun updateSizeMessage(id: String, height: Int, width: Int)
 
-    fun updateTypeDownloadProgressOfMessageWithAttachment(id: String, typeDownloadProgress: TypeDownloadProgress)
+    fun updateTypeDownloadProgressOfMessageWithAttachment(
+        id: String,
+        typeDownloadProgress: TypeDownloadProgress
+    )
 
     fun removeAllInfoMessages()
 

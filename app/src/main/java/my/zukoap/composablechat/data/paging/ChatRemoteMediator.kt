@@ -1,109 +1,84 @@
 package my.zukoap.composablechat.data.paging
 
-/*
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
-import androidx.room.withTransaction
-import my.zukoap.composablechat.data.local.db.dao.MessageDao
-import my.zukoap.composablechat.data.local.db.database.ChatDatabase
-import my.zukoap.composablechat.data.local.db.entity.ChatRemoteKeysEntity
+import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers.IO
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
-import my.zukoap.composablechat.data.remote.rest.MessageApi
-import retrofit2.await
-import javax.inject.Inject
+import my.zukoap.composablechat.domain.entity.auth.Visitor
+import my.zukoap.composablechat.domain.repository.ConditionRepository
+import my.zukoap.composablechat.domain.repository.MessageRepository
+import my.zukoap.composablechat.domain.use_cases.PersonUseCase
+import my.zukoap.composablechat.domain.use_cases.VisitorUseCase
 
 @ExperimentalPagingApi
-class ChatRemoteMediator @Inject constructor(
-    private val messageDao: MessageDao,
-    private val chatDatabase: ChatDatabase
+class ChatRemoteMediator(
+    private val conditionRepository: ConditionRepository,
+    private val personUseCase: PersonUseCase,
+    private val messageRepository: MessageRepository,
+    private val scope: CoroutineScope,
+    private val visitor: Visitor
 ) : RemoteMediator<Int, MessageEntity>() {
 
-    private val chatRemoteKeysDao = chatDatabase.chatRemoteKeysDao()
+    override suspend fun initialize(): InitializeAction {
+        return InitializeAction.LAUNCH_INITIAL_REFRESH
+    }
 
     override suspend fun load(
         loadType: LoadType,
         state: PagingState<Int, MessageEntity>
     ): MediatorResult {
         return try {
-            val currentPage = when (loadType) {
-                LoadType.REFRESH -> {
-                    val remoteKeys = getRemoteKeyClosestToCurrentPosition(state)
-                    remoteKeys?.nextPage?.minus(1) ?: 1
-                }
-                LoadType.PREPEND -> {
-                    val remoteKeys = getRemoteKeyForFirstItem(state)
-                    val prevPage = remoteKeys?.prevPage
-                        ?: return MediatorResult.Success(
-                            endOfPaginationReached = remoteKeys != null
-                        )
-                    prevPage
-                }
+            val loadKey = when (loadType) {
+                LoadType.REFRESH ->
+                    // In this example, you never need to prepend, since REFRESH
+                    // will always load the first page in the list. Immediately
+                    // return, reporting end of pagination.
+                    return MediatorResult.Success(endOfPaginationReached = false)
+                LoadType.PREPEND ->
+                    return MediatorResult.Success(endOfPaginationReached = false)
                 LoadType.APPEND -> {
-                    val remoteKeys = getRemoteKeyForLastItem(state)
-                    val nextPage = remoteKeys?.nextPage
+                    val lastItem = state.lastItemOrNull()
                         ?: return MediatorResult.Success(
-                            endOfPaginationReached = remoteKeys != null
+                            endOfPaginationReached = true
                         )
-                    nextPage
+                    // You must explicitly check if the last item is null when
+                    // appending, since passing null to networkService is only
+                    // valid for initial load. If lastItem is null it means no
+                    // items were loaded after the initial REFRESH and there are
+                    // no more items to load.
+                    lastItem.timestamp
                 }
             }
 
-            val response = messageDao.getMessages()
-            val endOfPaginationReached = response.isEmpty()
-
-            val prevPage = if (currentPage == 1) null else currentPage - 1
-            val nextPage = if (endOfPaginationReached) null else currentPage + 1
-
-
-            chatDatabase.withTransaction {
-                if (loadType == LoadType.REFRESH) {
-                    messageDao.deleteAllMessages()
-                    chatRemoteKeysDao.deleteAllRemoteKeys()
-                }
-                val keys = response.map { message ->
-                    ChatRemoteKeysEntity(
-                        id = message.id!!,
-                        prevPage = prevPage,
-                        nextPage = nextPage
+            val messages =
+                withContext(scope.coroutineContext + IO) {
+                    messageRepository.uploadMessages(
+                        uuid = visitor.uuid,
+                        startTime = null,
+                        endTime = loadKey,
+                        updateReadPoint = { false },
+                        syncMessagesAcrossDevices = {},
+                        returnedEmptyPool = {
+                            conditionRepository.saveFlagAllHistoryLoaded(true)
+                        },
+                        getPersonPreview = { personId ->
+                            personUseCase.getPersonPreview(personId, visitor.token)
+                        },
+                        getFileInfo = messageRepository::getFileInfo
                     )
                 }
-                chatRemoteKeysDao.addAllRemoteKeys(remoteKeys = keys)
-                messageDao.addImages(images = response)
+            scope.launch(IO) {
+                messageRepository.updatePersonNames(messages, personUseCase::updatePersonName)
+                messageRepository.mergeNewMessages()
             }
-            MediatorResult.Success(endOfPaginationReached = endOfPaginationReached)
+
+            MediatorResult.Success(endOfPaginationReached = messages.isEmpty())
         } catch (e: Exception) {
             return MediatorResult.Error(e)
         }
     }
 
-    private suspend fun getRemoteKeyClosestToCurrentPosition(
-        state: PagingState<Int, MessageEntity>
-    ): ChatRemoteKeysEntity? {
-        return state.anchorPosition?.let { position ->
-            state.closestItemToPosition(position)?.id?.let { id ->
-                chatRemoteKeysDao.getRemoteKeys(id = id)
-            }
-        }
-    }
-
-    private suspend fun getRemoteKeyForFirstItem(
-        state: PagingState<Int, MessageEntity>
-    ): ChatRemoteKeysEntity? {
-        return state.pages.firstOrNull { it.data.isNotEmpty() }?.data?.firstOrNull()
-            ?.let { chatImage ->
-                chatRemoteKeysDao.getRemoteKeys(id = chatImage.id)
-            }
-    }
-
-    private suspend fun getRemoteKeyForLastItem(
-        state: PagingState<Int, MessageEntity>
-    ): ChatRemoteKeysEntity? {
-        return state.pages.lastOrNull { it.data.isNotEmpty() }?.data?.lastOrNull()
-            ?.let { chatImage ->
-                chatRemoteKeysDao.getRemoteKeys(id = chatImage.id)
-            }
-    }
-
-}*/
+}
