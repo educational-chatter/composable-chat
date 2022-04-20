@@ -7,12 +7,12 @@ import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
 import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Default
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.repository.ConditionRepository
 import my.zukoap.composablechat.domain.repository.MessageRepository
 import my.zukoap.composablechat.domain.use_cases.PersonUseCase
-import my.zukoap.composablechat.domain.use_cases.VisitorUseCase
 
 @ExperimentalPagingApi
 class ChatRemoteMediator(
@@ -43,15 +43,12 @@ class ChatRemoteMediator(
                     return MediatorResult.Success(endOfPaginationReached = false)
                 LoadType.APPEND -> {
                     val lastItem = state.lastItemOrNull()
-                        ?: return MediatorResult.Success(
-                            endOfPaginationReached = true
-                        )
                     // You must explicitly check if the last item is null when
                     // appending, since passing null to networkService is only
                     // valid for initial load. If lastItem is null it means no
                     // items were loaded after the initial REFRESH and there are
                     // no more items to load.
-                    lastItem.timestamp
+                    lastItem?.timestamp ?: System.currentTimeMillis()
                 }
             }
 
@@ -72,7 +69,7 @@ class ChatRemoteMediator(
                         getFileInfo = messageRepository::getFileInfo
                     )
                 }
-            scope.launch(IO) {
+            scope.launch(Default) {
                 messageRepository.updatePersonNames(messages, personUseCase::updatePersonName)
                 messageRepository.mergeNewMessages()
             }
