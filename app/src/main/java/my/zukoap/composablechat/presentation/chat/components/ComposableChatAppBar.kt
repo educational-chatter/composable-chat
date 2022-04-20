@@ -37,7 +37,6 @@ fun ComposableChatAppBar(
     )
     Box(
         modifier = Modifier
-            .padding(bottom = 4.dp)
             .background(backgroundColor)
     ) {
         CenterAlignedTopAppBar(
@@ -51,7 +50,7 @@ fun ComposableChatAppBar(
                     contentDescription = stringResource(id = R.string.chat_avatar),
                     modifier = Modifier
                         .size(64.dp)
-                        //.clickable(onClick = onNavIconPressed)                                    // You can make it clickable()
+                        //.clickable(onClick = onNavIconPressed) // You can make it clickable()
                         .padding(16.dp)
                 )
             }

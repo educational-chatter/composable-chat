@@ -449,7 +449,7 @@ private fun AuthorInfo(
                     id = when (state) {
                         MessageType.RECEIVED_BY_MEDIATO -> R.drawable.ic_check
                         MessageType.RECEIVED_BY_OPERATOR -> R.drawable.ic_double_check
-                        else -> 0 // may cause problems, idk. But it is shorter than the case above
+                        else -> R.drawable.ic_check // may cause problems, idk. But it is shorter than the case above
                     }
                 ),
                 contentDescription = null,
@@ -554,19 +554,19 @@ private fun FileModel.sizeString(): String {
         in countByteInKByte until countByteInMByte -> {
             val value = this.size.toDouble() / countByteInKByte
             "${
-                (df.parse(df.format(value)).toDouble())
+                (df.parse(df.format(value))?.toDouble())
             } ${stringResource(R.string.chat_file_size_Kb)}"
         }
         in countByteInMByte until countByteInGByte -> {
             val value = this.size.toDouble() / countByteInMByte
             "${
-                (df.parse(df.format(value)).toDouble())
+                (df.parse(df.format(value))?.toDouble())
             } ${stringResource(R.string.chat_file_size_Mb)}"
         }
         in countByteInGByte until countByteInGByte * 1000L -> {
             val value = this.size.toDouble() / countByteInGByte
             "${
-                (df.parse(df.format(value)).toDouble())
+                (df.parse(df.format(value))?.toDouble())
             } ${stringResource(R.string.chat_file_size_Gb)}"
         }
         else -> ""

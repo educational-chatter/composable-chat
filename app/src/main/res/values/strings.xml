@@ -46,5 +46,7 @@
     <string name="warning_loading_image">Ошибка при загрузке изображения</string>
     <string name="warning_loading_gif">Ошибка при загрузке гифки</string>
     <string name="warning_loading_media_file">Ошибка при загрузке медиафайла</string>
+    <string name="textfield_hint">Сообщение</string>
+    <string name="textfield_desc">Поле ввода</string>
 
 </resources>

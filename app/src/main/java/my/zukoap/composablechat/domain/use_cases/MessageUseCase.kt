@@ -37,7 +37,7 @@ class MessageUseCase(
         val visitor = visitorUseCase.getVisitor()!!
         ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor)
         return Pager(
-            config = PagingConfig(20, enablePlaceholders = false),
+            config = PagingConfig(20, enablePlaceholders = true, prefetchDistance = 30),
             initialKey = if (countUnreadMessages > 0) countUnreadMessages - 1  else 0,
             remoteMediator = ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor),
             pagingSourceFactory = { messageRepository.getMessages() }

@@ -282,7 +282,7 @@ class SocketApi constructor(
 
 
     fun sendMessage(message: String, repliedMessage: NetworkMessage?) {
-       if (false) {
+       if (false) { // TODO: should check some attribute
             val repliedMessageJSONObject = repliedMessage?.let {
                 JSONObject(gson.toJson(it))
             }

@@ -2,18 +2,13 @@ package my.zukoap.composablechat.presentation.chat
 
 //import my.zukoap.composablechat.data.paging.ChatRemoteMediator
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.paging.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
-import my.zukoap.composablechat.common.ChatParams
-import my.zukoap.composablechat.data.local.db.database.ChatDatabase
-import my.zukoap.composablechat.data.paging.ChatRemoteMediator
+import kotlinx.coroutines.flow.*
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
 import my.zukoap.composablechat.domain.use_cases.*
@@ -23,7 +18,6 @@ import my.zukoap.composablechat.presentation.chat.model.MessageModel
 import my.zukoap.composablechat.presentation.chat.model.SeparateItem
 import my.zukoap.composablechat.presentation.helper.mappers.messageModelMapper
 import java.text.SimpleDateFormat
-import java.util.*
 import my.zukoap.composablechat.domain.entity.file.File as DomainFile
 import java.io.File as IOFile
 
@@ -63,30 +57,33 @@ class ComposableChatViewModel(
     private var _mergeHistoryProgressVisible = MutableLiveData(false)
     val mergeHistoryProgressVisible: LiveData<Boolean> = _mergeHistoryProgressVisible
 
-    val formatTime = SimpleDateFormat("dd.MM.yyyy")
-    val pager = messageUseCase.getPager(viewModelScope)
-    @OptIn(ExperimentalPagingApi::class)
-    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> = pager.flow.map { pagingData ->
-        pagingData.map { message ->
-            messageModelMapper(message)
-        }.insertSeparators<MessageModel, MessageModel> { before, after ->
-            if (after == null) {
-                // we're at the end of the list
-                return@insertSeparators null
-            }
+    private val formatTime = SimpleDateFormat("dd.MM.yyyy")
+    private val pager = messageUseCase.getPager(viewModelScope)
 
-            if (before == null) {
-                // we're at the beginning of the list
-                return@insertSeparators null
+    @OptIn(ExperimentalPagingApi::class)
+    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> =
+        pager.flow.map { pagingData ->
+            pagingData.map { message ->
+                messageModelMapper(message)
+            }.insertSeparators<MessageModel, MessageModel> { before, after ->
+                if (after == null) {
+                    // we're at the end of the list
+                    return@insertSeparators null
+                }
+
+                if (before == null) {
+                    // we're at the beginning of the list
+                    return@insertSeparators null
+                }
+                if (formatTime.format(before.timestamp) != formatTime.format(after.timestamp)) {
+                    return@insertSeparators SeparateItem(before.timestamp)
+                } else {
+                    // no separator
+                    null
+                }
             }
-            if (formatTime.format(before.timestamp) != formatTime.format(after.timestamp)) {
-                return@insertSeparators SeparateItem(before.timestamp)
-            } else {
-                // no separator
-                null
-            }
-        }
-    }.filterNotNull().cachedIn(viewModelScope) // .filterNotNull() may be redundant here
+        }.filterNotNull().distinctUntilChanged()
+            .cachedIn(viewModelScope) // .filterNotNull() may be redundant here
     val uploadMessagesForUser: Flow<PagingData<MessageModel>> = _uploadMessagesForUser
 
     private var _replyMessage: MutableLiveData<MessageModel?> = MutableLiveData(null)
@@ -222,6 +219,9 @@ class ComposableChatViewModel(
 
     init {
         conditionUseCase.setInternetConnectionListener(internetConnectionListener)
+    }
+
+    fun initOnInternet() { // Look up for LaunchedEffect(true) in ComposableChatScreen for info
         conditionUseCase.goToChatScreen()
         launchIO {
             configurationUseCase.getConfiguration()

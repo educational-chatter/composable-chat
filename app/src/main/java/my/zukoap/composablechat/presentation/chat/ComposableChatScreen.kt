@@ -2,24 +2,26 @@ package my.zukoap.composablechat.presentation.chat
 
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -29,6 +31,8 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.items
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import my.zukoap.composablechat.R
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
 import my.zukoap.composablechat.presentation.DisplayableUIObject
@@ -41,6 +45,7 @@ import org.koin.androidx.compose.viewModel
 var topAppBarMainText = "Поддержка"
 var topAppBarHelpText = mutableStateOf("")
 
+
 @ExperimentalComposeUiApi
 @ExperimentalCoroutinesApi
 @Composable
@@ -48,6 +53,13 @@ fun ComposableChatScreen(
     visitor: Visitor? = null,
     isFirstLaunch: MutableState<Boolean>
 ) {
+    // hoisted for FAB onClick scrolling
+    val listState: LazyListState = rememberLazyListState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val coroutineScope = rememberCoroutineScope()
+    val composableViewModel: ComposableChatViewModel by viewModel()
+
+
     Scaffold(
         topBar = {
             ComposableChatAppBar(title = {
@@ -60,8 +72,36 @@ fun ComposableChatScreen(
                     )
                 }
             })
+        },
+        floatingActionButton = {
+            if (listState.firstVisibleItemIndex > 10) { // firstVisibleItemIndex is the index of a message at the bottom of the screen
+                FloatingActionButton(onClick = {
+                    coroutineScope.launch {
+                        if (listState.firstVisibleItemIndex < 30)
+                            listState.animateScrollToItem(0) // scroll to bottom smoothly
+                        else
+                            listState.scrollToItem(0) // scroll to bottom fast
+                    }
+                }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_arrow_down),
+                        contentDescription = "Scroll to bottom",
+                        tint = MaterialTheme.colors.primaryVariant
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End,
+        bottomBar = {
+            UserInput(sendMessage = composableViewModel::sendMessage,
+                resetScroll = {
+                    coroutineScope.launch {
+                        listState.scrollToItem(0) // scroll to end when sending message
+                    }
+                })
         }
     ) {
+        // check for internet connection ( doesn't work properly, needs rework )
         val connection by connectivityState()
         val isConnected = connection === ConnectionState.Available
         var pressed by remember { mutableStateOf(true) }
@@ -81,11 +121,13 @@ fun ComposableChatScreen(
             }
         } else {
 
-            val composableViewModel: ComposableChatViewModel by viewModel()
-            val listState: LazyListState = rememberLazyListState()
-            val lifecycleOwner = LocalLifecycleOwner.current
-
-            /*TODO add observers*/
+            // It is made to fully initialize viewmodel when there is a network, otherwise it crashes
+            // It may cause problems
+            // Also, according to google:  LaunchedEffect(true) is as suspicious as a while(true).
+            // Even though there are valid use cases for it, always pause and make sure that's what you need.
+            LaunchedEffect(true) {
+                composableViewModel.initOnInternet()
+            }
 
             DisposableEffect(key1 = lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
@@ -101,7 +143,11 @@ fun ComposableChatScreen(
                 }
             }
 
+            // All livedata as state
             val internetConnectionState by composableViewModel.internetConnectionState.observeAsState()
+            val displayableUIObject by composableViewModel.displayableUIObject.observeAsState()
+            val countUnreadMessages by composableViewModel.countUnreadMessages.observeAsState()
+
             when (internetConnectionState) {
                 InternetConnectionState.NO_INTERNET -> {
                     topAppBarHelpText.value = "Соединение потеряно"
@@ -118,7 +164,6 @@ fun ComposableChatScreen(
                 else -> {}
             }
 
-            val displayableUIObject by composableViewModel.displayableUIObject.observeAsState()
             when (displayableUIObject) {
                 DisplayableUIObject.NOTHING -> {
                     Log.d("displayableUIObject", "NOTHING")
@@ -148,15 +193,23 @@ fun ComposableChatScreen(
                 else -> {}
             }
 
-            val countUnreadMessages by composableViewModel.countUnreadMessages.observeAsState()
             if (countUnreadMessages == null || countUnreadMessages!! <= 0) {
                 Log.d("countUnreadMessages", "null or zero")
             } else {
                 Log.d("countUnreadMessages", if (countUnreadMessages!! < 10) "<9" else "9+")
             }
 
+            // This is needed to clear focus from textField and hide a keyboard
+            // It's the simplest way i've found, it can be much better
+            val keyboardController = LocalSoftwareKeyboardController.current
+            val focusManager = LocalFocusManager.current
+            val interactionSource = remember { MutableInteractionSource() }
+
+
             val lazyMessageItems: LazyPagingItems<MessageModel> =
                 composableViewModel.uploadMessagesForUser.collectAsLazyPagingItems()
+
+            // Loading screen when we have no messages in our viewmodel, else show LazyColumn with mapped messages
             when (lazyMessageItems.itemCount) {
                 0 -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
@@ -168,7 +221,22 @@ fun ComposableChatScreen(
                             .fillMaxSize(0.2f), strokeWidth = 14.dp
                     )
                 }
-                else -> LazyColumn(reverseLayout = true, state = listState) {
+                else -> LazyColumn(
+                    reverseLayout = true,
+                    state = listState,
+                    modifier = Modifier
+                        .padding(
+                            top = it.calculateTopPadding(),
+                            bottom = it.calculateBottomPadding()
+                        )
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null    // this gets rid of the ripple effect
+                        ) {
+                            keyboardController?.hide()
+                            focusManager.clearFocus(true)
+                        }
+                ) {
                     items(items = lazyMessageItems) { message ->
                         if (message != null) {
                             RoleAlignedBox(message.role) {
@@ -198,8 +266,8 @@ fun ComposableChatScreen(
                             }
                         }
                     }
+                    // This is for debugging purposes
                     lazyMessageItems.apply {
-                        //Log.d("LOADSTATE", "${loadState}, items: $itemCount")
                         when {
                             loadState.refresh is LoadState.Loading -> {
                                 Log.d("LOADSTATE.REFRESH.LOAD", "Loading")
@@ -208,7 +276,8 @@ fun ComposableChatScreen(
                                 Log.d("LOADSTATE.APPEND.LOAD", "Loading")
                             }
                             loadState.refresh is LoadState.Error -> {
-                                val e = lazyMessageItems.loadState.refresh as LoadState.Error
+                                val e =
+                                    lazyMessageItems.loadState.refresh as LoadState.Error
                                 Log.d("LOADSTATE.REFRESH.ERROR", e.error.localizedMessage!!)
                             }
                             loadState.append is LoadState.Error -> {
@@ -221,10 +290,4 @@ fun ComposableChatScreen(
             }
         }
     }
-}
-
-@Preview
-@Composable
-fun screenPrev() {
-
 }
