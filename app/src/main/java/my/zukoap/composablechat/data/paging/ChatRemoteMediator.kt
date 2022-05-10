@@ -5,9 +5,8 @@ import androidx.paging.ExperimentalPagingApi
 import androidx.paging.LoadType
 import androidx.paging.PagingState
 import androidx.paging.RemoteMediator
-import kotlinx.coroutines.*
-import kotlinx.coroutines.Dispatchers.IO
-import kotlinx.coroutines.Dispatchers.Default
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.repository.ConditionRepository
@@ -19,7 +18,7 @@ class ChatRemoteMediator(
     private val conditionRepository: ConditionRepository,
     private val personUseCase: PersonUseCase,
     private val messageRepository: MessageRepository,
-    private val scope: CoroutineScope,
+    private val ioDispatcher: CoroutineDispatcher,
     private val visitor: Visitor
 ) : RemoteMediator<Int, MessageEntity>() {
 
@@ -53,7 +52,7 @@ class ChatRemoteMediator(
             }
 
             val messages =
-                withContext(scope.coroutineContext + IO) {
+                withContext(ioDispatcher) {
                     messageRepository.uploadMessages(
                         uuid = visitor.uuid,
                         startTime = null,
@@ -69,7 +68,7 @@ class ChatRemoteMediator(
                         getFileInfo = messageRepository::getFileInfo
                     )
                 }
-            scope.launch(Default) {
+            withContext(ioDispatcher) {
                 messageRepository.updatePersonNames(messages, personUseCase::updatePersonName)
                 messageRepository.mergeNewMessages()
             }

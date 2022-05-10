@@ -7,8 +7,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import androidx.paging.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.plus
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
 import my.zukoap.composablechat.domain.use_cases.*
@@ -58,7 +60,8 @@ class ComposableChatViewModel(
     val mergeHistoryProgressVisible: LiveData<Boolean> = _mergeHistoryProgressVisible
 
     private val formatTime = SimpleDateFormat("dd.MM.yyyy")
-    private val pager = messageUseCase.getPager(viewModelScope)
+    private val ioDispatcher = Dispatchers.IO
+    private val pager = messageUseCase.getPager(ioDispatcher)
 
     @OptIn(ExperimentalPagingApi::class)
     private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> =

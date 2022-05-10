@@ -1,10 +1,10 @@
 package my.zukoap.composablechat.domain.use_cases
 
-import androidx.lifecycle.viewModelScope
-import androidx.paging.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import my.zukoap.composablechat.data.local.db.database.ChatDatabase
+import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingSource
+import kotlinx.coroutines.CoroutineDispatcher
 import my.zukoap.composablechat.data.local.db.entity.MessageEntity
 import my.zukoap.composablechat.data.paging.ChatRemoteMediator
 import my.zukoap.composablechat.domain.repository.ConditionRepository
@@ -32,14 +32,26 @@ class MessageUseCase(
     }
 
     @OptIn(ExperimentalPagingApi::class)
-    fun getPager(scope: CoroutineScope): Pager<Int, MessageEntity> {
+    fun getPager(ioDispatcher: CoroutineDispatcher): Pager<Int, MessageEntity> {
         val countUnreadMessages = conditionRepository.getCountUnreadMessages()
         val visitor = visitorUseCase.getVisitor()!!
-        ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor)
+        ChatRemoteMediator(
+            conditionRepository,
+            personUseCase,
+            messageRepository,
+            ioDispatcher,
+            visitor
+        )
         return Pager(
             config = PagingConfig(20, enablePlaceholders = true, prefetchDistance = 30),
-            initialKey = if (countUnreadMessages > 0) countUnreadMessages - 1  else 0,
-            remoteMediator = ChatRemoteMediator(conditionRepository, personUseCase, messageRepository, scope, visitor),
+            initialKey = if (countUnreadMessages > 0) countUnreadMessages - 1 else 0,
+            remoteMediator = ChatRemoteMediator(
+                conditionRepository,
+                personUseCase,
+                messageRepository,
+                ioDispatcher,
+                visitor
+            ),
             pagingSourceFactory = { messageRepository.getMessages() }
         )
     }
