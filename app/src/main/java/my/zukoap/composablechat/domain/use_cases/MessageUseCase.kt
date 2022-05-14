@@ -35,13 +35,6 @@ class MessageUseCase(
     fun getPager(ioDispatcher: CoroutineDispatcher): Pager<Int, MessageEntity> {
         val countUnreadMessages = conditionRepository.getCountUnreadMessages()
         val visitor = visitorUseCase.getVisitor()!!
-        ChatRemoteMediator(
-            conditionRepository,
-            personUseCase,
-            messageRepository,
-            ioDispatcher,
-            visitor
-        )
         return Pager(
             config = PagingConfig(20, enablePlaceholders = true, prefetchDistance = 30),
             initialKey = if (countUnreadMessages > 0) countUnreadMessages - 1 else 0,
