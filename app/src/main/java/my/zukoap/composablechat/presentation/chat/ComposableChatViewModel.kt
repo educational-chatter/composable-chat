@@ -2,23 +2,24 @@ package my.zukoap.composablechat.presentation.chat
 
 //import my.zukoap.composablechat.data.paging.ChatRemoteMediator
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.paging.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import my.zukoap.composablechat.common.ChatParams
+import kotlinx.coroutines.plus
 import my.zukoap.composablechat.domain.entity.auth.Visitor
 import my.zukoap.composablechat.domain.entity.internet.InternetConnectionState
 import my.zukoap.composablechat.domain.use_cases.*
 import my.zukoap.composablechat.presentation.*
 import my.zukoap.composablechat.presentation.base.BaseViewModel
 import my.zukoap.composablechat.presentation.chat.model.MessageModel
+import my.zukoap.composablechat.presentation.chat.model.SeparateItem
 import my.zukoap.composablechat.presentation.helper.mappers.messageModelMapper
 import java.text.SimpleDateFormat
-import java.util.*
-import javax.inject.Inject
 import my.zukoap.composablechat.domain.entity.file.File as DomainFile
 import java.io.File as IOFile
 
@@ -31,12 +32,14 @@ class ComposableChatViewModel(
     private val feedbackUseCase: FeedbackUseCase,
     private val configurationUseCase: ConfigurationUseCase,
     //private val savedStateHandle: SavedStateHandle,
-    private val context: Context
+    private val context: Context,
 ) : BaseViewModel() {
 
     var currentReadMessageTime = conditionUseCase.getCurrentReadMessageTime()
     var isAllHistoryLoaded = conditionUseCase.checkFlagAllHistoryLoaded()
     var initialLoadKey = conditionUseCase.getInitialLoadKey()
+
+    /*TODO livedata -> state*/
 
     private var _countUnreadMessages = MutableLiveData<Int>()
     val countUnreadMessages: LiveData<Int> = _countUnreadMessages
@@ -56,16 +59,34 @@ class ComposableChatViewModel(
     private var _mergeHistoryProgressVisible = MutableLiveData(false)
     val mergeHistoryProgressVisible: LiveData<Boolean> = _mergeHistoryProgressVisible
 
-    val pagingSourceFactory = { messageUseCase.getAllMessages() }
-    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> = Pager(
-        config = PagingConfig(ChatParams.pageSize, enablePlaceholders = false),
-        initialKey = initialLoadKey,
-        pagingSourceFactory = pagingSourceFactory
-    ).flow.map { pagingData ->
-        pagingData.map { message ->
-            messageModelMapper(message)
-        }
-    }.cachedIn(viewModelScope)
+    private val formatTime = SimpleDateFormat("dd.MM.yyyy")
+    private val ioDispatcher = Dispatchers.IO
+    private val pager = messageUseCase.getPager(ioDispatcher)
+
+    @OptIn(ExperimentalPagingApi::class)
+    private var _uploadMessagesForUser: Flow<PagingData<MessageModel>> =
+        pager.flow.map { pagingData ->
+            pagingData.map { message ->
+                messageModelMapper(message)
+            }.insertSeparators<MessageModel, MessageModel> { before, after ->
+                if (after == null) {
+                    // we're at the end of the list
+                    return@insertSeparators null
+                }
+
+                if (before == null) {
+                    // we're at the beginning of the list
+                    return@insertSeparators null
+                }
+                if (formatTime.format(before.timestamp) != formatTime.format(after.timestamp)) {
+                    return@insertSeparators SeparateItem(before.timestamp)
+                } else {
+                    // no separator
+                    null
+                }
+            }
+        }.filterNotNull().distinctUntilChanged()
+            .cachedIn(viewModelScope) // .filterNotNull() may be redundant here
     val uploadMessagesForUser: Flow<PagingData<MessageModel>> = _uploadMessagesForUser
 
     private var _replyMessage: MutableLiveData<MessageModel?> = MutableLiveData(null)
@@ -76,10 +97,11 @@ class ComposableChatViewModel(
 
     @OptIn(ExperimentalPagingApi::class)
     fun uploadMessages() {
-        val pagingSourceFactory = { messageUseCase.getAllMessages() }
+/*        val pagingSourceFactory = { messageUseCase.getAllMessages() }
         val pager = Pager(
             config = PagingConfig(ChatParams.pageSize, enablePlaceholders = false),
             initialKey = initialLoadKey,
+            remoteMediator = ChatRemoteMediator(chatDatabase = db, messageUseCase = messageUseCase, conditionUseCase = conditionUseCase, syncMessagesAcrossDevices = ::syncMessagesAcrossDevices),
             pagingSourceFactory = pagingSourceFactory
         )
         val formatTime = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
@@ -87,7 +109,7 @@ class ComposableChatViewModel(
             pagingData.map { message ->
                 messageModelMapper(message)
             }
-        }.cachedIn(viewModelScope)
+        }*/
     }
 
 
@@ -200,6 +222,9 @@ class ComposableChatViewModel(
 
     init {
         conditionUseCase.setInternetConnectionListener(internetConnectionListener)
+    }
+
+    fun initOnInternet() { // Look up for LaunchedEffect(true) in ComposableChatScreen for info
         conditionUseCase.goToChatScreen()
         launchIO {
             configurationUseCase.getConfiguration()
@@ -281,7 +306,7 @@ class ComposableChatViewModel(
                 documentUrl = documentUrl,
                 directory = context.filesDir,
                 openDocument = { documentFile ->
-//                    delay(ChatAttr.getInstance().delayDownloadDocument)
+                    delay(1000L)
                     _openDocument.postValue(Pair(documentFile, true))
                 },
                 downloadedFail = {

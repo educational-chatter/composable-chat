@@ -2,10 +2,8 @@ package my.zukoap.composablechat.di.modules.chat
 
 import my.zukoap.composablechat.domain.use_cases.*
 import my.zukoap.composablechat.presentation.chat.ComposableChatViewModel
-import my.zukoap.composablechat.presentation.chat.ComposableChatViewModelFactory
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 /*@Module
@@ -31,7 +29,6 @@ object ViewModelModule {
         context
     )
 
-    //TODO find out what the function below does
 
 *//*    @Provides
     @ChatScope

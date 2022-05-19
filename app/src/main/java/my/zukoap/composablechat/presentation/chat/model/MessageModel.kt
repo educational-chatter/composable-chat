@@ -1,7 +1,9 @@
 package my.zukoap.composablechat.presentation.chat.model
 
+import androidx.compose.ui.text.AnnotatedString
 import my.zukoap.composablechat.presentation.base.BaseItem
-import my.zukoap.composablechat.presentation.chat.model.Role.*
+import my.zukoap.composablechat.presentation.chat.model.Role.NEUTRAL
+import my.zukoap.composablechat.presentation.chat.model.Role.OPERATOR
 import my.zukoap.composablechat.domain.entity.message.MessageType as StateMessage
 
 sealed class MessageModel(
@@ -11,22 +13,27 @@ sealed class MessageModel(
     open val authorName: String,
     open val authorPreview: String? = null,
     open val stateCheck: StateMessage,
-    var isFirstMessageInDay: Boolean = false
+    //var isLastMessageInDay: Boolean = false
 ) : BaseItem() {
     override fun <T : BaseItem> isSame(item: T): Boolean {
         return item is MessageModel && item.id == id
     }
 }
 
+data class SeparateItem(
+    override val timestamp: Long
+) : MessageModel("", NEUTRAL, timestamp, "", null, StateMessage.INFO_MESSAGE)
+
 data class DefaultMessageItem(
     override val id: String,
     override val timestamp: Long
-) : MessageModel(id, NEUTRAL, timestamp, "", null, StateMessage.DEFAULT, false)
+) : MessageModel(id, NEUTRAL, timestamp, "", null, StateMessage.DEFAULT)//, false)
+
 
 data class TextMessageItem(
     override val id: String,
     override val role: Role,
-    val message: String,
+    val message: AnnotatedString,
     val actions: List<ActionItem>?,
     val hasSelectedAction: Boolean,
     val repliedMessage: RepliedMessageModel?,
@@ -69,7 +76,7 @@ data class FileMessageItem(
 data class UnionMessageItem(
     override val id: String,
     override val role: Role,
-    val message: String,
+    val message: AnnotatedString,
     val actions: List<ActionItem>?,
     val hasSelectedAction: Boolean,
     val file: FileModel,
@@ -86,7 +93,8 @@ data class TransferMessageItem(
     override val authorPreview: String?
 ) : MessageModel(
     id,
-    NEUTRAL,
+    //NEUTRAL,
+    OPERATOR,
     timestamp,
     authorName,
     authorPreview,
@@ -95,6 +103,6 @@ data class TransferMessageItem(
 
 data class InfoMessageItem(
     override val id: String,
-    val message: String,
+    val message: AnnotatedString,
     override val timestamp: Long
 ) : MessageModel(id, NEUTRAL, timestamp, "", null, StateMessage.INFO_MESSAGE)

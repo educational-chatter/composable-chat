@@ -14,6 +14,7 @@ import my.zukoap.composablechat.domain.entity.file.NetworkBodyStructureUploadFil
 import my.zukoap.composablechat.domain.entity.file.TypeUpload
 import my.zukoap.composablechat.domain.repository.FileRepository
 import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Call
@@ -46,7 +47,7 @@ class FileRepositoryImpl(
         request.enqueue(object : Callback<String> {
             override fun onResponse(call: Call<String>, response: Response<String>) {
                 handleUploadFile(response.code(), response.message())
-                Log.d("UPLOAD_TEST", "Success upload - ${response.message()} ${response.body()}; ${response.code()}; ${request.request().url()}")
+                Log.d("UPLOAD_TEST", "Success upload - ${response.message()} ${response.body()}; ${response.code()}; ${request.request().url}")
             }
             override fun onFailure(call: Call<String>, t: Throwable) {
                 when (t.message) {
@@ -60,11 +61,11 @@ class FileRepositoryImpl(
     private fun uploadFile(uuid: String, token: String, fileName: String, fileRequestBody: RequestBody, handleUploadFile: (responseCode: Int, responseMessage: String) -> Unit) {
         val body: MultipartBody.Part = MultipartBody.Part.createFormData(ApiParams.FILE_FIELD_NAME, fileName, fileRequestBody)
         val fileNameRequestBody = RequestBody.create(
-            MediaType.get(ContentTypeValue.TEXT_PLAIN.value),
+            ContentTypeValue.TEXT_PLAIN.value.toMediaType(),
             fileName
         )
         val uuidRequestBody = RequestBody.create(
-            MediaType.get(ContentTypeValue.TEXT_PLAIN.value),
+            ContentTypeValue.TEXT_PLAIN.value.toMediaType(),
             uuid
         )
 
@@ -78,7 +79,7 @@ class FileRepositoryImpl(
         request.enqueue(object : Callback<String> {
             override fun onResponse(call: Call<String>, response: Response<String>) {
                 handleUploadFile(response.code(), response.message())
-                Log.d("UPLOAD_TEST", "Success upload - ${response.message()} ${response.body()}; ${response.code()}; ${request.request().url()}")
+                Log.d("UPLOAD_TEST", "Success upload - ${response.message()} ${response.body()}; ${response.code()}; ${request.request().url}")
             }
             override fun onFailure(call: Call<String>, t: Throwable) {
                 when (t.message) {

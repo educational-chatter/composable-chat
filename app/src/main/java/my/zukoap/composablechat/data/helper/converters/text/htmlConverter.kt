@@ -8,6 +8,7 @@ import my.zukoap.composablechat.common.ClickableLinkMode
 import my.zukoap.composablechat.domain.entity.tags.*
 import java.util.regex.Matcher
 import java.util.regex.Pattern
+import kotlin.math.min
 
 fun String.convertTextToNormalString(listTag: ArrayList<Tag>): String {
     fun <T: Tag> setTagsByPatterns(text: String, regexs: Array<CharSequence>, factory : (startPosition: Int, endPosition: Int, value: String) -> T, listTag: ArrayList<Tag>) {
@@ -41,12 +42,12 @@ fun String.convertTextToNormalString(listTag: ArrayList<Tag>): String {
     return when {
         this.replace("\n", "").let {
             it.matches(Regex(".*<(strong|i|a|img|ul|li|br|p).*")) ||
-            it.matches(Regex(".*&(nbsp|pound|euro|para|sect|copy|reg|trade|deg|plusmn|frac14|frac12|frac34|times|divide|fnof);.*")) ||
-            it.matches(Regex(".*&(larr|uarr|rarr|darr|harr);.*")) ||
-            it.matches(Regex(".*&(spades|clubs|hearts|diams|quot|amp|lt|gt);.*")) ||
-            it.matches(Regex(".*&(hellip|prime|Prime);.*")) ||
-            it.matches(Regex(".*&(ndash|mdash|lsquo|rsquo|sbquo|ldquo|rdquo|bdquo|laquo|raquo);.*")) ||
-            it.matches(Regex(".*&#[0-9]*;.*"))
+                    it.matches(Regex(".*&(nbsp|pound|euro|para|sect|copy|reg|trade|deg|plusmn|frac14|frac12|frac34|times|divide|fnof);.*")) ||
+                    it.matches(Regex(".*&(larr|uarr|rarr|darr|harr);.*")) ||
+                    it.matches(Regex(".*&(spades|clubs|hearts|diams|quot|amp|lt|gt);.*")) ||
+                    it.matches(Regex(".*&(hellip|prime|Prime);.*")) ||
+                    it.matches(Regex(".*&(ndash|mdash|lsquo|rsquo|sbquo|ldquo|rdquo|bdquo|laquo|raquo);.*")) ||
+                    it.matches(Regex(".*&#[0-9]*;.*"))
         } -> convertFromHtmlTextToNormalString(listTag).selectPhones()
         else -> convertFromBaseTextToNormalString(listTag).selectPhones()
     }
@@ -62,11 +63,11 @@ fun String.convertFromBaseTextToNormalString(listTag: ArrayList<Tag>): String {
             val indexNewLine = input.indexOf("\n", startIndex, true)
             val indexEndSentence = input.indexOf(".\n", startIndex, true)
             val endIndex = when {
-                indexSpace != -1 && indexNewLine != -1 && indexEndSentence != -1 -> Math.min(Math.min(indexSpace, indexNewLine), indexEndSentence)
-                indexSpace != -1 && indexNewLine != -1 && indexEndSentence == -1 -> Math.min(indexSpace, indexNewLine)
-                indexSpace != -1 && indexNewLine == -1 && indexEndSentence != -1 -> Math.min(indexSpace, indexEndSentence)
+                indexSpace != -1 && indexNewLine != -1 && indexEndSentence != -1 -> min(min(indexSpace, indexNewLine), indexEndSentence)
+                indexSpace != -1 && indexNewLine != -1 && indexEndSentence == -1 -> min(indexSpace, indexNewLine)
+                indexSpace != -1 && indexNewLine == -1 && indexEndSentence != -1 -> min(indexSpace, indexEndSentence)
                 indexSpace != -1 && indexNewLine == -1 && indexEndSentence == -1 -> indexSpace
-                indexSpace == -1 && indexNewLine != -1 && indexEndSentence != -1 -> Math.min(indexNewLine, indexEndSentence)
+                indexSpace == -1 && indexNewLine != -1 && indexEndSentence != -1 -> min(indexNewLine, indexEndSentence)
                 indexSpace == -1 && indexNewLine != -1 && indexEndSentence == -1 -> indexNewLine
                 indexSpace == -1 && indexNewLine == -1 && indexEndSentence != -1 -> indexEndSentence
                 else -> -1
@@ -98,6 +99,7 @@ fun String.convertFromBaseTextToNormalString(listTag: ArrayList<Tag>): String {
             selectUrl(this, "https")
             selectUrl(this, "wss")
         }
+        else -> {}
     }
 //    selectUrl(this, "www")
     return this
@@ -272,12 +274,13 @@ fun String.convertFromHtmlTextToNormalString(listTag: ArrayList<Tag>): String {
                             addTag(tagName.toString().trim(), listAttrsTag, result.lastIndex, result.lastIndex)
                         }
                     }
-                    !isSingleTag && isCloseTag -> {
+                    (!isSingleTag && isCloseTag) -> {
                         replyOrExecuteTag(tagName.toString().trim(), result) {
                             updateStateTag(tagName.toString().trim(), result.lastIndex)
                         }
                     }
-                    !isSingleTag && !isCloseTag -> addTag(tagName.toString().trim(), listAttrsTag, result.lastIndex)
+                    (!isSingleTag && !isCloseTag) -> addTag(tagName.toString().trim(), listAttrsTag, result.lastIndex)
+                    else -> {}
                 }
                 isSelectTag = false
                 isSingleTag = false

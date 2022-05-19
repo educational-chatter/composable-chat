@@ -1,7 +1,8 @@
 package my.zukoap.composablechat.data.repository
 
 import android.content.Context
-import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import my.zukoap.composablechat.common.ChatParams
 import my.zukoap.composablechat.data.local.db.dao.MessageDao
@@ -15,7 +16,6 @@ import my.zukoap.composablechat.domain.repository.MessageRepository
 import my.zukoap.composablechat.domain.transfer.TransferFileInfo
 import my.zukoap.composablechat.presentation.helper.ui.getSizeMediaFile
 import my.zukoap.composablechat.presentation.helper.ui.getWeightFile
-import javax.inject.Inject
 
 class MessageRepositoryImpl(
     private val context: Context,
@@ -59,16 +59,16 @@ class MessageRepositoryImpl(
     ): List<MessageEntity> {
 
         try {
-            val fullPullMessages= mutableListOf<NetworkMessage>()
+            val fullPullMessages = mutableListOf<NetworkMessage>()
 
             var lastTimestamp = endTime
             while (true) {
                 val listMessages = withTimeoutOrNull(ChatParams.uploadPoolMessagesTimeout) {
-                    async {
+                    withContext(Dispatchers.Default) {
                         socketApi.uploadMessages(
                             timestamp = lastTimestamp
                         )
-                    }.await()
+                    }
                 }
                 socketApi.closeHistoryListener()
                 listMessages ?: break
@@ -89,7 +89,12 @@ class MessageRepositoryImpl(
 
                 val firstTimeMessage = listMessages
                     .sortedBy { it.timestamp }
-                    .find { it.messageType in listOf(MessageType.VISITOR_MESSAGE.valueType, MessageType.TRANSFER_TO_OPERATOR.valueType) }?.timestamp
+                    .find {
+                        it.messageType in listOf(
+                            MessageType.VISITOR_MESSAGE.valueType,
+                            MessageType.TRANSFER_TO_OPERATOR.valueType
+                        )
+                    }?.timestamp
 
                 fullPullMessages.addAll(listMessages.filter { it.timestamp >= startTime })
 
@@ -104,54 +109,71 @@ class MessageRepositoryImpl(
 
             if (fullPullMessages.isEmpty()) return listOf()
 
-            val actionSelectionMessages = fullPullMessages.filter { !it.selectedAction.isNullOrBlank() && it.messageType == MessageType.VISITOR_MESSAGE.valueType }.map { it.selectedAction ?: "" }
-            val messageStatuses = fullPullMessages.filter { it.messageType in listOf(MessageType.RECEIVED_BY_MEDIATO.valueType, MessageType.RECEIVED_BY_OPERATOR.valueType) }
-
-            val operatorMessagesWithContent = fullPullMessages.filter { it.isReply && it.messageType == MessageType.VISITOR_MESSAGE.valueType && it.isContainsContent }.map { networkMessage ->
-                val fileInfo = getFileInfo(context, networkMessage)
-                MessageEntity.mapOperatorMessage(
-                    uuid = uuid,
-                    networkMessage = networkMessage,
-                    actionsSelected = actionSelectionMessages,
-                    operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) },
-                    fileSize = fileInfo?.size,
-                    mediaFileHeight = fileInfo?.height,
-                    mediaFileWidth = fileInfo?.width
+            val actionSelectionMessages =
+                fullPullMessages.filter { !it.selectedAction.isNullOrBlank() && it.messageType == MessageType.VISITOR_MESSAGE.valueType }
+                    .map { it.selectedAction ?: "" }
+            val messageStatuses = fullPullMessages.filter {
+                it.messageType in listOf(
+                    MessageType.RECEIVED_BY_MEDIATO.valueType,
+                    MessageType.RECEIVED_BY_OPERATOR.valueType
                 )
             }
 
-            val userMessagesWithContent = fullPullMessages.filter { !it.isReply &&  it.messageType == MessageType.VISITOR_MESSAGE.valueType && it.isContainsContent }.map { networkMessage ->
-                val statusesConcreteMessage: List<Int> = messageStatuses.filter { it.parentMessageId == networkMessage.idFromChannel }.map { it.messageType }
-                val newStatus: Int = when {
-                    statusesConcreteMessage.contains(MessageType.RECEIVED_BY_OPERATOR.valueType) -> MessageType.RECEIVED_BY_OPERATOR.valueType
-                    statusesConcreteMessage.contains(MessageType.RECEIVED_BY_MEDIATO.valueType) -> MessageType.RECEIVED_BY_MEDIATO.valueType
-                    else -> MessageType.VISITOR_MESSAGE.valueType
-                }
-                val fileInfo = getFileInfo(context, networkMessage)
-                val repliedFileInfo = networkMessage.replyToMessage?.let { getFileInfo(context, it) }
-                MessageEntity.mapUserMessage(
-                    uuid = uuid,
-                    networkMessage = networkMessage,
-                    status = newStatus,
-                    operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) },
-                    fileSize = fileInfo?.size,
-                    mediaFileHeight = fileInfo?.height,
-                    mediaFileWidth = fileInfo?.width,
-                    repliedMessageFileSize = repliedFileInfo?.size,
-                    repliedMessageMediaFileHeight = repliedFileInfo?.height,
-                    repliedMessageMediaFileWidth = repliedFileInfo?.width,
-                )
-            }
+            val operatorMessagesWithContent =
+                fullPullMessages.filter { it.isReply && it.messageType == MessageType.VISITOR_MESSAGE.valueType && it.isContainsContent }
+                    .map { networkMessage ->
+                        val fileInfo = getFileInfo(context, networkMessage)
+                        MessageEntity.mapOperatorMessage(
+                            uuid = uuid,
+                            networkMessage = networkMessage,
+                            actionsSelected = actionSelectionMessages,
+                            operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) },
+                            fileSize = fileInfo?.size,
+                            mediaFileHeight = fileInfo?.height,
+                            mediaFileWidth = fileInfo?.width
+                        )
+                    }
 
-            val messagesAboutJoin = fullPullMessages.filter { it.messageType == MessageType.TRANSFER_TO_OPERATOR.valueType }.map { networkMessage ->
-                MessageEntity.mapOperatorJoinMessage(
-                    uuid = uuid,
-                    networkMessage = networkMessage,
-                    operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) }
-                )
-            }
+            val userMessagesWithContent =
+                fullPullMessages.filter { !it.isReply && it.messageType == MessageType.VISITOR_MESSAGE.valueType && it.isContainsContent }
+                    .map { networkMessage ->
+                        val statusesConcreteMessage: List<Int> =
+                            messageStatuses.filter { it.parentMessageId == networkMessage.idFromChannel }
+                                .map { it.messageType }
+                        val newStatus: Int = when {
+                            statusesConcreteMessage.contains(MessageType.RECEIVED_BY_OPERATOR.valueType) -> MessageType.RECEIVED_BY_OPERATOR.valueType
+                            statusesConcreteMessage.contains(MessageType.RECEIVED_BY_MEDIATO.valueType) -> MessageType.RECEIVED_BY_MEDIATO.valueType
+                            else -> MessageType.VISITOR_MESSAGE.valueType
+                        }
+                        val fileInfo = getFileInfo(context, networkMessage)
+                        val repliedFileInfo =
+                            networkMessage.replyToMessage?.let { getFileInfo(context, it) }
+                        MessageEntity.mapUserMessage(
+                            uuid = uuid,
+                            networkMessage = networkMessage,
+                            status = newStatus,
+                            operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) },
+                            fileSize = fileInfo?.size,
+                            mediaFileHeight = fileInfo?.height,
+                            mediaFileWidth = fileInfo?.width,
+                            repliedMessageFileSize = repliedFileInfo?.size,
+                            repliedMessageMediaFileHeight = repliedFileInfo?.height,
+                            repliedMessageMediaFileWidth = repliedFileInfo?.width,
+                        )
+                    }
 
-            val maxTimestampUserMessage = userMessagesWithContent.maxByOrNull { it.timestamp }?.timestamp
+            val messagesAboutJoin =
+                fullPullMessages.filter { it.messageType == MessageType.TRANSFER_TO_OPERATOR.valueType }
+                    .map { networkMessage ->
+                        MessageEntity.mapOperatorJoinMessage(
+                            uuid = uuid,
+                            networkMessage = networkMessage,
+                            operatorPreview = networkMessage.operatorId?.let { getPersonPreview(it) }
+                        )
+                    }
+
+            val maxTimestampUserMessage =
+                userMessagesWithContent.maxByOrNull { it.timestamp }?.timestamp
             maxTimestampUserMessage?.run(updateReadPoint)
 
             val resultMessages = mutableListOf<MessageEntity>().apply {
@@ -163,17 +185,20 @@ class MessageRepositoryImpl(
             ChatParams.glueMessage?.let { msg ->
                 resultMessages.add(
                     MessageEntity.mapInfoMessage(
-                    uuid = uuid,
-                    infoMessage = msg,
-                    timestamp = (resultMessages.maxOfOrNull { it.timestamp } ?: messageDao.getLastTime() ?: System.currentTimeMillis()) + 1
-                ))
+                        uuid = uuid,
+                        infoMessage = msg,
+                        timestamp = (resultMessages.maxOfOrNull { it.timestamp }
+                            ?: messageDao.getLastTime() ?: System.currentTimeMillis()) + 1
+                    ))
             }
 
             removeAllInfoMessages()
             messageDao.insertMessages(resultMessages)
 
             maxTimestampUserMessage?.let { timestampLastUserMessage ->
-                resultMessages.filter { it.timestamp > timestampLastUserMessage }.size.run(syncMessagesAcrossDevices)
+                resultMessages.filter { it.timestamp > timestampLastUserMessage }.size.run(
+                    syncMessagesAcrossDevices
+                )
             }
 
             return resultMessages
@@ -221,7 +246,8 @@ class MessageRepositoryImpl(
     }
 
     override suspend fun sendMessages(message: String, repliedMessageId: String?) {
-        val repliedMessage = repliedMessageId?.let { messageDao.getMessageById(it) }?.let { NetworkMessage.map(it) }
+        val repliedMessage =
+            repliedMessageId?.let { messageDao.getMessageById(it) }?.let { NetworkMessage.map(it) }
         socketApi.sendMessage(message, repliedMessage)
     }
 
